@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from ll2tile import *
 from PIL import Image, ImageDraw
 import os
 import math
@@ -72,4 +71,5 @@ def getimg (file, bbox, size, layer):
 
 
 if __name__ == '__main__':
+  
   print getimg ("out.jpg",bbox, (width, height), layer)
