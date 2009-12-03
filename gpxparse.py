@@ -7,7 +7,7 @@ class GPXParser:
     self.tracks = {}
     self.pointnum = 0
     self.trknum = 0
-    self.bbox = (999,999,0,0)
+    self.bbox = (999,999,-999,-999)
     try:
       doc = minidom.parse(filename)
       doc.normalize()
