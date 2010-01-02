@@ -5,6 +5,7 @@ import math
 import sys
 import urllib
 import config
+import pyproj
 
 
 
@@ -38,6 +39,8 @@ def handler(req):
     zoom = 18
     layer = ""
 
+
+   
     req_type = data.get("REQUEST",data.get("request","GetMap"))
     version = data.get("VERSION",data.get("version","1.1.1"))
     if req_type == "GetCapabilities" and version == "1.0.0":
@@ -45,20 +48,7 @@ def handler(req):
       req.write("""
 <?xml version="1.0" standalone="no"?>
 <!-- The DTD (Document Type Definition) given here must correspond to the version number declared in the WMT_MS_Capabilities element below. -->
-<!DOCTYPE WMT_MS_Capabilities SYSTEM "http://www2.demis.nl/WMS/capabilities_1_0_0.dtd" [
-
- <!-- Output formats known to this server are defined here
-if necessary (only if a format not already listed in the WMT
-Capabilities DTD is needed).  To define a new format, place
-an entity definition for KnownFormats like the one below in
-the DOCTYPE declaration of your Capabilities XML, listing at
-minimum all of the formats you support and separating each
-by logical-OR (|) characters.  Then, define a new element
-for any formats not predefined by WMT.  For example, in the
-following list "SGI" is a server-specific format, while all
-the others are known WMT-wide.  Thus, SGI is included in the
-KnownFormats list and a new empty element <SGI/> is
-defined. -->
+<!DOCTYPE WMT_MS_Capabilities SYSTEM "http://www2.demis.nl/WMS/capabilities_1_0_0.dtd" 
 <!ENTITY % KnownFormats " SGI | GIF | JPEG | PNG | WebCGM | SVG | GML.1
  | WMS_XML | MIME | INIMAGE | PPM | BLANK " >
 <!ELEMENT SGI EMPTY> <!-- Silicon Graphics RGB Format -->
@@ -132,13 +122,16 @@ defined. -->
                         <Title>World Map</Title>
                         <Abstract/>
                         <SRS>EPSG:4326</SRS>
-                        <LatLonBoundingBox minx="-180" miny="-90" maxx="180" maxy="90"/>
-                        <BoundingBox SRS="EPSG:4326" minx="-184" miny="-90" maxx="180" maxy="90"/>
+                        <SRS>EPSG:3395</SRS>
+                        <SRS>EPSG:3857</SRS>
+                        <SRS>EPSG:900913</SRS>
+                        <LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
+                        <BoundingBox SRS="EPSG:4326" minx="-184" miny="85.0511287798" maxx="180" maxy="85.0511287798"/>
 """)
       lala = """<Layer queryable="1">
                                 <Name>%s</Name>
                                 <Title>%s</Title>
-                                <BoundingBox SRS="EPSG:4326" minx="-180" miny="-90" maxx="180" maxy="90"/>
+                                <BoundingBox SRS="EPSG:4326" minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
                                 <ScaleHint min="0" max="124000"/>
                         </Layer>"""
       for i in config.layers.keys():
@@ -233,14 +226,17 @@ defined. -->
                 <Layer>
                         <Title>World Map</Title>
                         <SRS>EPSG:4326</SRS>
-                        <LatLonBoundingBox minx="-180" miny="-90" maxx="180" maxy="90"/>
-                        <BoundingBox SRS="EPSG:4326" minx="-184" miny="-90" maxx="180" maxy="90"/>
+                        <SRS>EPSG:3395</SRS>
+                        <SRS>EPSG:3857</SRS>
+                        <SRS>EPSG:900913</SRS>
+                        <LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
+                        <BoundingBox SRS="EPSG:4326" minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
 
 """)
       lala = """<Layer queryable="0" opaque="0">
                                 <Name>%s</Name>
                                 <Title>%s</Title>
-                                <BoundingBox SRS="EPSG:4326" minx="-180" miny="-90" maxx="180" maxy="90"/>
+                                <BoundingBox SRS="EPSG:4326" minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
                                 <ScaleHint min="0" max="124000"/>
                         </Layer>"""
       for i in config.layers.keys():
@@ -283,16 +279,31 @@ defined. -->
 
 
       return apache.OK
-    format = data.get("format", "image/jpeg")
+    format = data.get("format", data.get("FORMAT", "image/jpeg"))
 
     if format not in formats:
      req.write("Invalid Format")
      return 500
     req.content_type = format
     if data.get("bbox",data.get("BBOX",None)) or bbox:
-      bbox = tuple(map(float,data.get("bbox", bbox).split(",")))
+      bbox = tuple(map(float,data.get("bbox",data.get("BBOX",bbox)).split(",")))
     height = int(data.get("height",data.get("HEIGHT",height)))
     width = int(data.get("width",data.get("WIDTH",width)))
+    srs = data.get("srs", data.get("SRS", "EPSG:4326"))
+    if srs == "EPSG:4326":
+       p = pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
+    elif srs == "EPSG:3395":
+        p = pyproj.Proj('+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs')
+        la1,lo1,la2,lo2 = bbox
+        la1,lo1 = p(la1,lo1, inverse=True)
+        la2,lo2 = p(la2,lo2, inverse=True)
+        bbox = (la1,lo1,la2,lo2)
+    elif srs == "EPSG:900913":
+        p = pyproj.Proj('+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs')
+        la1,lo1,la2,lo2 = bbox
+        la1,lo1 = p(la1,lo1, inverse=True)
+        la2,lo2 = p(la2,lo2, inverse=True)
+        bbox = (la1,lo1,la2,lo2)
     if (width > 4048) or (height > 4048):
       width = 1024
       height = 0
@@ -305,6 +316,7 @@ defined. -->
     print >> sys.stderr, req.get_remote_host(), layer, bbox, gpx, rovarinfo
 
     sys.stderr.flush()
+
     
     getimg(req,bbox, (height, width), layer, gpx, filt, formats[format], rovarinfo, force)
     
@@ -316,6 +328,14 @@ defined. -->
 #F:\home\kom\Downloads\SASPlanet\cache\yasat\z18\81\x83812\41\y42668.jpg
 
 
+def MetersToLatLon(self, mx, my ):
+                "Converts XY point from Spherical Mercator EPSG:900913 to lat/lon in WGS84 Datum"
+
+                lon = (mx / self.originShift) * 180.0
+                lat = (my / self.originShift) * 180.0
+
+                lat = 180 / math.pi * (2 * math.atan( math.exp( lat * math.pi / 180.0)) - math.pi / 2.0)
+                return lat, lon
 
 
 def llz2txy(lat, lon, zoom=18, proj = 1):

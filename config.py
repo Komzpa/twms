@@ -14,7 +14,7 @@ tiles_cache = "/var/www/latlon/wms/cache/"
 
 def FetchYandex (z,x,y):
    yh_dead_tile = "/var/www/latlon/wms/yandex_nxt.jpg"
-   remote = "http://sat01.maps.yandex.net/tiles?l=sat&v=1.12.0&x=%s&y=%s&z=%s"%(x,y,z-1)
+   remote = "http://sat01.maps.yandex.net/tiles?l=sat&v=1.14.0&x=%s&y=%s&z=%s"%(x,y,z-1)
    local = tiles_cache + layers["yasat"]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
    if not os.path.exists("/".join(local.split("/")[:-1])):
        os.makedirs("/".join(local.split("/")[:-1]))
@@ -79,6 +79,14 @@ def FetchOsm (z,x,y):
           urllib.urlretrieve (osm_url, local_url)
           return local_url
           
+def FetchNavitel (z,x,y):
+          osm_url = "http://map.navitel.su/navitms.fcgi?t=%08i,%08i,%02i" % (x, 2**(z-1)-y-1, z-1)
+          local_url = tiles_cache + layers["navitel"]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y) + layers["navitel"]["ext"]
+          if not os.path.exists("/".join(local_url.split("/")[:-1])):
+            os.makedirs("/".join(local_url.split("/")[:-1]))
+          urllib.urlretrieve (osm_url, local_url)
+          return local_url
+          
 
 
 
@@ -107,12 +115,12 @@ def FetchIrs (z,x,y):
       sys.stderr.flush()
       return False
    if filecmp.cmp(local+layers["irs"]["ext"], yh_dead_tile):
-      print >> sys.stderr, z, x, y,  " --- IRS dead :("
-      sys.stderr.flush()
-      tne = open (local+"tne", "w")
-      when = time.localtime()
-      tne.write("%02d.%02d.%04d %02d:%02d:%02d"%(when[2],when[1],when[0],when[3],when[4],when[5]))
-      tne.close()
+  #    print >> sys.stderr, z, x, y,  " --- IRS dead :("
+  #    sys.stderr.flush()
+  #    tne = open (local+"tne", "w")
+  #    when = time.localtime()
+  #    tne.write("%02d.%02d.%04d %02d:%02d:%02d"%(when[2],when[1],when[0],when[3],when[4],when[5]))
+  #    tne.close()
       os.remove(local+ layers["irs"]["ext"])
       return False
    return local+layers["irs"]["ext"]
@@ -198,6 +206,20 @@ layers = {\
      "fetch": FetchIrs, # function that fetches given tile. should return None if tile wasn't fetched
      "proj": 2,
 },\
-
-
+"SAT":  { \
+     "name": "Google Satellite Partial",
+     "prefix": "SAT",                   # tile directory
+     "ext": "jpg",                      # tile images extension
+     "scalable": True,                 # could zN tile be constructed of four z(N+1) tiles
+     "fetch": lambda z,x,y: None, # function that fetches given tile. should return None if tile wasn't fetched
+     "proj": 1,
+},\
+"navitel":  { \
+     "name": "Navitel Navigator Maps",
+     "prefix": "Navitel",                   # tile directory
+     "ext": "png",                      # tile images extension
+     "scalable": True,                 # could zN tile be constructed of four z(N+1) tiles
+     "fetch": FetchNavitel, # function that fetches given tile. should return None if tile wasn't fetched
+     "proj": 1,
+},\
 }
