@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
 import os
 import math
 import sys
 import urllib
 import config
 import pyproj
-
-
+import ImageEnhance
+import StringIO
+import tilenames
+import re
+import time
+import capabilities
 
 
 if __name__ != '__main__':
@@ -20,20 +24,22 @@ if __name__ != '__main__':
 
 layer = ""
 
+
+
  
 def handler(req):
     """
     A handler for mod_python.
     """
-
+    start_time = datetime.datetime.now()
     formats = {"image/gif":"GIF","image/jpeg":"JPEG","image/jpg":"JPEG","image/png":"PNG","image/bmp":"BMP"}
 
     data = util.FieldStorage(req)
     gpx = data.get("gpx",None) 
     if not gpx:
-     bbox = "27.6518898,53.8683186,27.6581944,53.8720359"
+     req_bbox = "27.6518898,53.8683186,27.6581944,53.8720359"
     else:
-     bbox = None
+     req_bbox = None
     width = 0
     height = 0
     zoom = 18
@@ -43,250 +49,50 @@ def handler(req):
    
     req_type = data.get("REQUEST",data.get("request","GetMap"))
     version = data.get("VERSION",data.get("version","1.1.1"))
-    if req_type == "GetCapabilities" and version == "1.0.0":
-      req.content_type = "text/xml"
-      req.write("""
-<?xml version="1.0" standalone="no"?>
-<!-- The DTD (Document Type Definition) given here must correspond to the version number declared in the WMT_MS_Capabilities element below. -->
-<!DOCTYPE WMT_MS_Capabilities SYSTEM "http://www2.demis.nl/WMS/capabilities_1_0_0.dtd" 
-<!ENTITY % KnownFormats " SGI | GIF | JPEG | PNG | WebCGM | SVG | GML.1
- | WMS_XML | MIME | INIMAGE | PPM | BLANK " >
-<!ELEMENT SGI EMPTY> <!-- Silicon Graphics RGB Format -->
+    if req_type == "GetCapabilities":
+     ctype, text = capabilities.get(version)
+     req.content_type = ctype
+     req.write (text)
+     return apache.OK
 
- <!-- other vendor-specific elements defined here -->
- <!ELEMENT VendorSpecificCapabilities (YMD)>
- <!ELEMENT YMD (Title, Abstract)>
- <!ATTLIST YMD required (0 | 1) "0">
-
- ]>
-
-<!-- end of DOCTYPE declaration -->
-<!-- The version number listed in the WMT_MS_Capabilities element here must correspond to the DTD declared above.  See the WMT specification document for how to respond when a client requests a version number not implemented by the server. -->
-<WMT_MS_Capabilities version=\"""" +str(version)+ """">
-        <Service>
-                <!-- The WMT-defined name for this type of service -->
-                <Name>GetMap</Name>
-                <!-- Human-readable title for pick lists -->
-                <Title>UnTiled Map</Title>
-                <!-- Narrative description providing additional information -->
-
-                <Abstract>None</Abstract>
-                <Keywords></Keywords>
-                <!-- Top-level address of service or service provider.  See also onlineResource attributes of <DCPType> children. -->
-                <OnlineResource>http://wms.latlon.org</OnlineResource>
-                <!-- Fees or access constraints imposed. -->
-                <Fees>none</Fees>
-                <AccessConstraints>none</AccessConstraints>
-
-        </Service>
-        <Capability>
-                <Request>
-                        <Map>
-                                <Format>
-                                        <GIF/>
-                                        <JPEG/>
-                                        <PNG/>
-                                        <BMP/>
-
-                                </Format>
-                                <DCPType>
-                                        <HTTP>
-                                                <!-- The URL here for HTTP GET requests includes only the prefix before the query string.-->
-                                                <Get onlineResource="http://wms.latlon.org/?"/>
-                                        </HTTP>
-                                </DCPType>
-                        </Map>
-                        <Capabilities>
-
-                                <Format>
-                                        <WMS_XML/>
-                                </Format>
-                                <DCPType>
-                                        <HTTP>
-                                                <!-- The URL here for HTTP GET requests includes only the prefix before the query string.-->
-                                                <Get onlineResource="http://wms.latlon.org/?"/>
-                                        </HTTP>
-                                </DCPType>
-
-                        </Capabilities>
-                </Request>
-                <Exception>
-                        <Format>
-                                <WMS_XML/>
-                                <INIMAGE/>
-                                <BLANK/>
-
-                        </Format>
-                </Exception>
-                <Layer>
-                        <Title>World Map</Title>
-                        <Abstract/>
-                        <SRS>EPSG:4326</SRS>
-                        <SRS>EPSG:3395</SRS>
-                        <SRS>EPSG:3857</SRS>
-                        <SRS>EPSG:900913</SRS>
-                        <LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
-                        <BoundingBox SRS="EPSG:4326" minx="-184" miny="85.0511287798" maxx="180" maxy="85.0511287798"/>
-""")
-      lala = """<Layer queryable="1">
-                                <Name>%s</Name>
-                                <Title>%s</Title>
-                                <BoundingBox SRS="EPSG:4326" minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
-                                <ScaleHint min="0" max="124000"/>
-                        </Layer>"""
-      for i in config.layers.keys():
-          req.write(lala%(i,config.layers[i]["name"]))
-
-      req.write("""          </Layer>
-
-        </Capability>
-</WMT_MS_Capabilities>
-
-
-
-""")
-
-
-
-
-
-
-
-    elif req_type == "GetCapabilities":
-      req.content_type = "application/vnd.ogc.wms_xml"
-      req.write("""<?xml version="1.0"?>
-<!DOCTYPE WMT_MS_Capabilities SYSTEM "http://www2.demis.nl/WMS/capabilities_1_1_1.dtd" [
- <!-- Vendor-specific elements are defined here if needed. -->
- <!-- If not needed, just leave this EMPTY declaration.  Do not
-  delete the declaration entirely. -->
- <!ELEMENT VendorSpecificCapabilities EMPTY>
- ]>
-<WMT_MS_Capabilities version="1.1.1">
-        <!-- Service Metadata -->
-        <Service>
-                <!-- The WMT-defined name for this type of service -->
-                <Name>tWMS</Name>
-                <!-- Human-readable title for pick lists -->
-                <Title>World Maps</Title>
-                <!-- Narrative description providing additional information -->
-                <Abstract>None</Abstract>
-                <!-- Top-level web address of service or service provider.  See also OnlineResource
-  elements under <DCPType>. -->
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://www2.demis.nl"/>
-                <!-- Contact information -->
-                <ContactInformation>
-                        <ContactPersonPrimary>
-                                <ContactPerson></ContactPerson>
-                                <ContactOrganization></ContactOrganization>
-                        </ContactPersonPrimary>
-                        <ContactElectronicMailAddress></ContactElectronicMailAddress>
-                </ContactInformation>
-                <!-- Fees or access constraints imposed. -->
-                <Fees>none</Fees>
-                <AccessConstraints>none</AccessConstraints>
-        </Service>
-        <Capability>
-                <Request>
-                        <GetCapabilities>
-                                <Format>application/vnd.ogc.wms_xml</Format>
-                                <DCPType>
-                                        <HTTP>
-                                                <Get>
-                                                        <!-- The URL here for invoking GetCapabilities using HTTP GET
-            is only a prefix to which a query string is appended. -->
-                                                        <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://wms.latlon.org/?"/>
-                                                </Get>
-                                        </HTTP>
-                                </DCPType>
-                        </GetCapabilities>
-                        <GetMap>
-                                <Format>image/png</Format>
-                                <Format>image/jpeg</Format>
-                                <Format>image/gif</Format>
-                                <Format>image/bmp</Format>
-                                <DCPType>
-                                        <HTTP>
-                                                <Get>
-                                                        <!-- The URL here for invoking GetCapabilities using HTTP GET
-            is only a prefix to which a query string is appended. -->
-                                                        <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://wms.latlon.org/?"/>
-                                                </Get>
-                                        </HTTP>
-                                </DCPType>
-                        </GetMap>
-                </Request>
-                <Exception>
-                        <Format>application/vnd.ogc.se_inimage</Format>
-                        <Format>application/vnd.ogc.se_blank</Format>
-                        <Format>application/vnd.ogc.se_xml</Format>
-                        <Format>text/xml</Format>
-                        <Format>text/plain</Format>
-                </Exception>
-                <VendorSpecificCapabilities/>
-                <Layer>
-                        <Title>World Map</Title>
-                        <SRS>EPSG:4326</SRS>
-                        <SRS>EPSG:3395</SRS>
-                        <SRS>EPSG:3857</SRS>
-                        <SRS>EPSG:900913</SRS>
-                        <LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
-                        <BoundingBox SRS="EPSG:4326" minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
-
-""")
-      lala = """<Layer queryable="0" opaque="0">
-                                <Name>%s</Name>
-                                <Title>%s</Title>
-                                <BoundingBox SRS="EPSG:4326" minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
-                                <ScaleHint min="0" max="124000"/>
-                        </Layer>"""
-      for i in config.layers.keys():
-          req.write(lala%(i,config.layers[i]["name"]))
-
-      req.write("""          </Layer>
-
-        </Capability>
-</WMT_MS_Capabilities>""")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      return apache.OK
-    format = data.get("format", data.get("FORMAT", "image/jpeg"))
-
+    layer = data.get("layer",data.get("layers",data.get("LAYERS","osm")))
+    format = data.get("format", data.get("FORMAT", config.default_format))
     if format not in formats:
      req.write("Invalid Format")
      return 500
     req.content_type = format
-    if data.get("bbox",data.get("BBOX",None)) or bbox:
-      bbox = tuple(map(float,data.get("bbox",data.get("BBOX",bbox)).split(",")))
+    x = int(data.get("x",data.get("X",0)))
+    y = int(data.get("y",data.get("Y",0)))
+    z = int(data.get("z",data.get("Z",1)))
+    z += 1
+
+    force = data.get("force","").split(",")
+    filt = data.get ("filter","")
+    if req_type == "GetTile":
+      width=256
+      height=256
+      height = int(data.get("height",data.get("HEIGHT",height)))
+      width = int(data.get("width",data.get("WIDTH",width)))
+      if data.get("layer",data.get("layers",data.get("LAYERS","osm"))) in config.layers:
+       if config.layers[layer]["proj"] is 1 and width is 256 and height is 256 and not filt and not force:
+          local = config.tiles_cache + config.layers[layer]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
+          ext = config.layers[layer]["ext"]
+          adds = ["","ups."]
+          for add in adds:
+           if os.path.exists(local+add+ext):
+             tile_file = open(local+add+ext, "r")
+             req.write(tile_file.read())
+             return apache.OK
+      req_bbox = "%s,%s,%s,%s" % tilenames.tileEdges(x,y,z-1)
+
+
+
+
+
+
+
+    if data.get("bbox",data.get("BBOX",None)) or req_bbox:
+      req_bbox = tuple(map(float,data.get("bbox",data.get("BBOX",req_bbox)).split(",")))
     height = int(data.get("height",data.get("HEIGHT",height)))
     width = int(data.get("width",data.get("WIDTH",width)))
     srs = data.get("srs", data.get("SRS", "EPSG:4326"))
@@ -294,48 +100,125 @@ def handler(req):
        p = pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
     elif srs == "EPSG:3395":
         p = pyproj.Proj('+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs')
-        la1,lo1,la2,lo2 = bbox
+        la1,lo1,la2,lo2 = req_bbox
         la1,lo1 = p(la1,lo1, inverse=True)
         la2,lo2 = p(la2,lo2, inverse=True)
-        bbox = (la1,lo1,la2,lo2)
-    elif srs == "EPSG:900913":
+        req_bbox = (la1,lo1,la2,lo2)
+    elif srs == "EPSG:900913" or srs == "EPSG:3857" :
         p = pyproj.Proj('+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs')
-        la1,lo1,la2,lo2 = bbox
+        la1,lo1,la2,lo2 = req_bbox
         la1,lo1 = p(la1,lo1, inverse=True)
         la2,lo2 = p(la2,lo2, inverse=True)
-        bbox = (la1,lo1,la2,lo2)
+        req_bbox = (la1,lo1,la2,lo2)
+        
+    flip_h = False
+    flip_v = False
+    if req_bbox[0] > req_bbox[2]:
+      flip_h = True
+      req_bbox = (req_bbox[2],req_bbox[1],req_bbox[0],req_bbox[3])
+    if req_bbox[1] > req_bbox[3]:
+      flip_v = True
+      req_bbox = (req_bbox[0],req_bbox[3],req_bbox[2],req_bbox[1])
     if (width > 4048) or (height > 4048):
       width = 1024
       height = 0
     if (width == 0) and (height == 0):
       width = 350
-    layer = data.get("layer",data.get("layers",data.get("LAYERS","osm")))
-    force = data.get("force","").split(",")
-    filt = data.get ("filter",None)
+    
+
     rovarinfo = data.get ("rovar", None)
-    print >> sys.stderr, req.get_remote_host(), layer, bbox, gpx, rovarinfo
-
-    sys.stderr.flush()
 
     
-    getimg(req,bbox, (height, width), layer, gpx, filt, formats[format], rovarinfo, force)
+    layer = layer.split(",")
     
+    imgs = 1.
+    result_img = getimg(req, req_bbox, (height, width), layer.pop(), gpx, rovarinfo, force, start_time)
+    width, height =  result_img.size
+    for ll in layer:
+     result_img = Image.blend(result_img, getimg(req, req_bbox, (height, width), ll, gpx,  rovarinfo, force, start_time), imgs/(imgs+1.))
+     imgs += 1.
+
+##Applying filters
+    for ff in filt.split(","):
+     if ff.split(":") == [ff,]:
+      if ff == "bw":
+       r,g,b = result_img.split()
+       g = g.filter(ImageFilter.CONTOUR)
+       result_img = Image.merge ("RGB", (r,g,b))
+
+       result_img = Image.eval(result_img, lambda x: int((x+512)/3))
+       outtbw = result_img.convert("L")
+
+
+
+       outtbw = outtbw.convert("RGB")
+       result_img = Image.blend(result_img, outtbw, 0.62)
+      if ff == "contour":
+        result_img = result_img.filter(ImageFilter.CONTOUR)
+      if ff == "median":
+        result_img = result_img.filter(ImageFilter.MedianFilter(5))
+      if ff == "blur":
+        result_img = result_img.filter(ImageFilter.BLUR)
+      if ff == "edge":
+        result_img = result_img.filter(ImageFilter.EDGE_ENHANCE)
+     else:
+      ff, tt = ff.split(":")
+      tt = float(tt)
+      if ff == "brightness":
+        enhancer = ImageEnhance.Brightness(result_img)
+        result_img = enhancer.enhance(tt)
+      if ff == "contrast":
+        enhancer = ImageEnhance.Contrast(result_img)
+        result_img = enhancer.enhance(tt)
+      if ff == "sharpness":
+        enhancer = ImageEnhance.Sharpness(result_img)
+        result_img = enhancer.enhance(tt)
+
+
+
+    wkt = data.get("wkt",data.get("WKT",None))
+    
+    if wkt: 
+      wkt = wkt.replace("((","(")
+      for obj in wkt.split("),"):
+
+       wkt_canvas = result_img.copy()
+       name, coords = obj.split("(")
+       coords = coords.replace(")","")
+       coords = coords.split(",")
+       coords = [ [float(t) for t in x.split(" ")] for x in coords]
+       coords = [(x[1],x[0]) for x in coords]
+       render_vector(name,wkt_canvas, req_bbox,coords)
+       result_img = Image.blend(result_img, wkt_canvas, 0.5)
+
+
+    if flip_h:
+      result_img = ImageOps.flip(result_img)
+    if flip_v:
+      result_img = ImageOps.mirror(result_img)
+    result_img.save(req, formats[format])
+
+
     return apache.OK
 
+def render_vector(geometry, img, bbox, coords):
+    """
+Renders a vector geomatry on image.
+    """
+    draw = ImageDraw.Draw(img)
+    lo1, la1, lo2, la2 = bbox
+    W,H = img.size
+    prevcoord = False
+    coords = [(int((coord[1]-lo1)*(W-1)/abs(lo2-lo1)), int((la2-coord[0])*(H-1)/(la2-la1))) for coord in coords]
+    if geometry == "LINESTRING":
+       draw.line (coords, fill="#ff0000", width=3)
+       
+       
+    elif geometry == "POINT":
+       draw.ellipse((coords[0][0]-3,coords[0][1]-3,coords[0][0]+3,coords[0][1]+3),fill="#00ee00",outline="#00ff00")
+    elif geometry == "POLYGON":
+       draw.polygon(coords, fill="#0000ff", outline="#0000cc")
 
-#http://sat01.maps.yandex.net/tiles?l=sat&v=1.11.0&x=83812&y=42667&z=17
-#http://sat01.maps.yandex.net/tiles?l=sat&v=1.11.0&x=83812&y=42668&z=17
-#F:\home\kom\Downloads\SASPlanet\cache\yasat\z18\81\x83812\41\y42668.jpg
-
-
-def MetersToLatLon(self, mx, my ):
-                "Converts XY point from Spherical Mercator EPSG:900913 to lat/lon in WGS84 Datum"
-
-                lon = (mx / self.originShift) * 180.0
-                lat = (my / self.originShift) * 180.0
-
-                lat = 180 / math.pi * (2 * math.atan( math.exp( lat * math.pi / 180.0)) - math.pi / 2.0)
-                return lat, lon
 
 
 def llz2txy(lat, lon, zoom=18, proj = 1):
@@ -393,23 +276,23 @@ def llz2txy(lat, lon, zoom=18, proj = 1):
 def getbestzoom (bbox, size, layer):
    """
    Calculate a best-fit zoom level
-   """    
-   for i in range (1,18):
+   """
+   max_zoom = config.layers[layer].get("max_zoom",18)
+   for i in range (1,max_zoom):
      cx1, cy1, px1, py1 =  llz2txy (bbox[1],bbox[0], i, proj=config.layers[layer]["proj"])
      cx2, cy2, px2, py2 =  llz2txy (bbox[3],bbox[2], i, proj=config.layers[layer]["proj"])
-     print ((cy1-cy2)*256+py1-py2), ((cx2-cx1)*256+px2-px1)
-     if size[0] is not 0:
-      if ((cx2-cx1)*256+px2-px1) >= size[0] :
-       return i
      if size[1] is not 0:
-      if ((cy1-cy2)*256+py1-py2) >= size[1]:
+      if ((cx2-cx1)*256+px2-px1) >= size[1] :
+       return i
+     if size[0] is not 0:
+      if ((cy1-cy2)*256+py1-py2) >= size[0]:
        return i
 
-   return 18
+   return max_zoom
 
 def get_gpx_from_rovarinfo (id):
    import urllib2 
-   import re
+   
    route = urllib2.urlopen ("http://rovarinfo.rovarsoft.com/?q=route-display/%s"%id).read()
    rgexpr  = re.compile(r'LINESTRING\((.*)\)')
    line, = rgexpr.search(route).groups()
@@ -422,7 +305,7 @@ def get_gpx_from_rovarinfo (id):
    
    
 
-def tile_image (layer, z, x, y, again=False, trybetter = True, real = False):
+def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real = False):
    """
    Returns asked image.
    again - is this a second pass on this tile?
@@ -431,12 +314,16 @@ def tile_image (layer, z, x, y, again=False, trybetter = True, real = False):
    """
    local = config.tiles_cache + config.layers[layer]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
    ext = config.layers[layer]["ext"]
+   if "cache_ttl" in config.layers[layer]:
+    for ex in [ext, "dsc."+ext, "ups."+ext, "tne"]:
+     f = local+ex
+     if os.path.exists(f):
+       if (os.stat(f).st_mtime < (time.time()-config.layers[layer]["cache_ttl"])):
+        os.remove(f)
+
    gpt_image = False
    if not os.path.exists("/".join(local.split("/")[:-1])):
        os.makedirs("/".join(local.split("/")[:-1]))
-   #print >> sys.stderr,layer, z, x, y, os.path.exists(local+"tne"), local+ext, real
-
-   #sys.stderr.flush()
    if not os.path.exists(local+"tne") and not os.path.exists(local+"lock"):
     if os.path.exists(local+ext):			# First, look for tile in cache
       try:
@@ -455,16 +342,14 @@ def tile_image (layer, z, x, y, again=False, trybetter = True, real = False):
             im = Image.open(local+"ups."+ext)
             return im
 	im = Image.new("RGB", (512, 512))
-	im1 = tile_image(layer, z+1,x*2,y*2)
+	im1 = tile_image(layer, z+1,x*2,y*2, start_time)
         if im1:
-	 im2 = tile_image(layer, z+1,x*2+1,y*2)
+	 im2 = tile_image(layer, z+1,x*2+1,y*2, start_time)
          if im2:  
-	  im3 = tile_image(layer, z+1,x*2,y*2+1)
+	  im3 = tile_image(layer, z+1,x*2,y*2+1, start_time)
           if im3:
-	    im4 = tile_image(layer, z+1,x*2+1,y*2+1)
+	    im4 = tile_image(layer, z+1,x*2+1,y*2+1, start_time)
             if im4:
-	#     print >> sys.stderr,layer, z, x, y, again, " --- GLUED!"
-        #     sys.stderr.flush()
 	     im.paste(im1,(0,0))
 	     im.paste(im2,(256,0))      
 	     im.paste(im3,(0,256))     
@@ -473,26 +358,23 @@ def tile_image (layer, z, x, y, again=False, trybetter = True, real = False):
 	     im.save(local+"ups."+ext)
 	     return im
     if not again:
-     if config.layers[layer]["fetch"](z,x,y):    # Try fetching from outside
-	return tile_image(layer,z,x,y,again=True)
-   if real and (z>1): #config.layers[layer]["scalable"] and not trybetter:  # Try to cut image from worser
-        if os.path.exists(local+"dsc."+ext):
-            im = Image.open(local+"dsc."+ext)
-            return im
-	#print >> sys.stderr,layer, z, x, y, " --- downscaling"
-        im = tile_image(layer, z-1, int(x/2), int(y/2),  again=False, trybetter=False, real=True)
-
-        #sys.stderr.flush()
-        #im = im.resize((512,512).ANTIALIAS)
+     
+     if "fetch" in config.layers[layer]:
+        delta = (datetime.datetime.now() - start_time)
+        delta = delta.seconds + delta.microseconds/1000000.
+        if  (config.deadline > delta) or (z < 4):
+         
+         if config.layers[layer]["fetch"](z,x,y,layer):    # Try fetching from outside
+           return tile_image(layer,z,x,y, start_time,again=True)
+   if real and (z>1): 
+        im = tile_image(layer, z-1, int(x/2), int(y/2), start_time,  again=False, trybetter=False, real=True)
         if im:
           im = im.crop((128 * (x % 2), 128 * (y % 2), 128 * (x % 2) + 128, 128 * (y % 2) + 128))
-          im = im.resize((256,256), Image.ANTIALIAS)
-          im.save(local+"dsc."+ext)
-          #if not os.path.exists(local+"tne") and not os.path.exists(local+"lock")
+          im = im.resize((256,256), Image.BILINEAR)
           return im
 
 
-def getimg (file, bbox, size, layer, gpx, filtr, format, rovarinfo, force):
+def getimg (file, bbox, size, layer, gpx, rovarinfo, force, start_time):
    if gpx: 
      from gpxparse import GPXParser
      if not os.path.exists ("/var/www/latlon/wms/traces/%s.gpx" % gpx):
@@ -515,14 +397,14 @@ def getimg (file, bbox, size, layer, gpx, filtr, format, rovarinfo, force):
    for x in range (from_tile_x, to_tile_x+1):
     for y in range (to_tile_y, from_tile_y+1):
      got_image = False
-     im1 = tile_image (layer,zoom,x,y, real = True)
+     im1 = tile_image (layer,zoom,x,y, start_time, real = True)
      if not im1:
         im1 = Image.new("RGB", (256, 256))
         imd = ImageDraw.Draw(im1)
         imd.line ([0,0,256,256],fill="#ff0000")
         imd.line ([0,255,255,255],fill="#fff000")
 
-#         im1 = tile_image ("osm",zoom,x,y)
+
      out.paste(im1,((x - from_tile_x)*256, (-to_tile_y + y )*256,))     
    out = out.crop(bbox)   
    if (H == W) and (H == 0):
@@ -531,34 +413,10 @@ def getimg (file, bbox, size, layer, gpx, filtr, format, rovarinfo, force):
      H = out.size[1]*W/out.size[0]
    if W == 0:
      W = out.size[0]*H/out.size[1]
-   #out = out.filter(ImageFilter.SHARPEN)
+   
    if "noresize" not in force:
     out = out.resize((W,H), Image.ANTIALIAS)
-   #out = out.filter(ImageFilter.CONTOUR)
-   if not filtr:
-    filtr = "no"
-
-   for ff in filtr.split(","):
-    if ff == "bw" or ff == "yes":
-     r,g,b = out.split()
-     g = g.filter(ImageFilter.CONTOUR)
-     outt = Image.merge ("RGB", (r,g,b))
-
-     outt = Image.eval(out, lambda x: int((x+512)/3))
-     outtbw = out.convert("L")    
-    
-    
-    
-     outtbw = outtbw.convert("RGB")
-     out = Image.blend(outt, outtbw, 0.62)
-    if ff == "edges":
-      #r,g,b = out.split()
-      #r = r.filter(ImageFilter.FIND_EDGES)
-      #g = g.filter(ImageFilter.FIND_EDGES)
-      #b = b.filter(ImageFilter.FIND_EDGES)
-      #out = Image.merge ("RGB", (r,g,b))
-      out = out.filter(ImageFilter.CONTOUR)
-      #out = out.filter(ImageFilter.FIND_EDGES)
+   
    
    if rovarinfo:
     draw = ImageDraw.Draw (out)
@@ -592,9 +450,4 @@ def getimg (file, bbox, size, layer, gpx, filtr, format, rovarinfo, force):
 
        if math.sqrt(reduce(lambda a,b: a*a+b*b,map(lambda c,d: abs(c-d) ,(x,y),prevcoord))) > 4:
         prevcoord = (x,y)
-   out.save(file, format)  
-
-
-if __name__ == '__main__':
-  print getbestzoom ((27.404,53.829748,27.704,53.974),(0,300))
-
+   return out
