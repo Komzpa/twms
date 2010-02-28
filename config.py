@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
+#    This file is part of tWMS.
 
-import urllib
-import urllib2
-import filecmp
-import time
-import os
-import math
-import sys
-import StringIO
-import Image
+#   tWMS is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+
+#   tWMS is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+
+#   You should have received a copy of the GNU General Public License
+#   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 import tilenames
 import fetchers
 
@@ -31,7 +35,7 @@ tiles_cache = "/var/www/latlon/wms/cache/"
 
 #}
 
-## Available layers. 
+
 
 
 
@@ -46,7 +50,7 @@ contact_person = {
 "organization": ""
 }
 
-
+## Available layers. 
 layers = {\
 "DGsat": { \
      "name": "Digital Globe Satellite",
