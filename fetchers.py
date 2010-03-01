@@ -56,7 +56,6 @@ def Wms4326as3857 (z, x, y, layer):
       when = time.localtime()
       tne.write("%02d.%02d.%04d %02d:%02d:%02d"%(when[2],when[1],when[0],when[3],when[4],when[5]))
       tne.close()
-      os.remove(local+ this_layer["ext"])
       return False
    im.save(local+this_layer["ext"])
    os.rmdir(local+"lock")

@@ -63,7 +63,7 @@ layers = {\
      "name": "Yahoo Satellite",
      "prefix": "yhsat",			# tile directory
      "ext": "jpg",			# tile images extension
-     "scalable": True,			# could zN tile be constructed of four z(N+1) tiles
+     "scalable": False,			# could zN tile be constructed of four z(N+1) tiles
      "fetch": fetchers.Tile,		# function that fetches given tile. should return None if tile wasn't fetched
      "remote_url": "http://aerial.maps.yimg.com/ximg?v=1.8&t=a&s=256&r=1&x=%s&y=%s&z=%s",
      "transform_tile_number": lambda z,x,y: (x,y,z-1),
@@ -75,7 +75,7 @@ layers = {\
      "name": "Yandex Satellite",
      "prefix": "yasat",			# tile directory
      "ext": "jpg",			# tile images extension
-     "scalable": True,			# could zN tile be constructed of four z(N+1) tiles
+     "scalable": False,			# could zN tile be constructed of four z(N+1) tiles
      "fetch": fetchers.Tile,	# function that fetches given tile. should return None if tile wasn't fetched
      "remote_url": "http://sat01.maps.yandex.net/tiles?l=sat&v=1.14.0&x=%s&y=%s&z=%s",
      "transform_tile_number": lambda z,x,y: (x,y,z-1),

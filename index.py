@@ -211,6 +211,7 @@ def handler(req):
       result_img = ImageOps.flip(result_img)
     if flip_v:
       result_img = ImageOps.mirror(result_img)
+    
     result_img.save(req, formats[format])
 
 
@@ -356,7 +357,7 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
         if os.path.exists(local+"ups."+ext):
             im = Image.open(local+"ups."+ext)
             return im
-	im = Image.new("RGB", (512, 512))
+	im = Image.new("RGBA", (512, 512))
 	im1 = tile_image(layer, z+1,x*2,y*2, start_time)
         if im1:
 	 im2 = tile_image(layer, z+1,x*2+1,y*2, start_time)
@@ -408,16 +409,13 @@ def getimg (file, bbox, size, layer, gpx, rovarinfo, force, start_time):
    x = 256*(to_tile_x-from_tile_x+1)
    y = 256*(from_tile_y-to_tile_y+1)
 
-   out = Image.new("RGB", (x, y))
+   out = Image.new("RGBA", (x, y))
    for x in range (from_tile_x, to_tile_x+1):
     for y in range (to_tile_y, from_tile_y+1):
      got_image = False
      im1 = tile_image (layer,zoom,x,y, start_time, real = True)
      if not im1:
-        im1 = Image.new("RGB", (256, 256))
-        imd = ImageDraw.Draw(im1)
-        imd.line ([0,0,256,256],fill="#ff0000")
-        imd.line ([0,255,255,255],fill="#fff000")
+        im1 = Image.new("RGBA", (256, 256), (0,0,0,0))
 
 
      out.paste(im1,((x - from_tile_x)*256, (-to_tile_y + y )*256,))     
