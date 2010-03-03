@@ -40,54 +40,70 @@ def Wms4326as3857 (z, x, y, layer):
    tile_bbox = "bbox=%s,%s,%s,%s" % tilenames.tileEdges(x,y,z-1)
 
    wms += tile_bbox + "&width=%s&height=%s"%(width, height)
-   if not os.path.exists("/".join(local.split("/")[:-1])):
-       os.makedirs("/".join(local.split("/")[:-1]))
-   try:
-    os.mkdir(local+"lock")
-   except OSError:
-    return None
+   if this_layer.get("cached", True):
+    if not os.path.exists("/".join(local.split("/")[:-1])):
+        os.makedirs("/".join(local.split("/")[:-1]))
+    try:
+       os.mkdir(local+"lock")
+    except OSError:
+        return None
    im = Image.open(StringIO.StringIO(urllib2.urlopen(wms).read()))
    if width is not 256 and height is not 256:
     im = im.resize((256,256),Image.ANTIALIAS)
    im = im.convert("RGBA")
    ic = Image.new("RGBA", (256, 256), "white")
-   if im.histogram() == ic.histogram():
-      tne = open (local+"tne", "w")
-      when = time.localtime()
-      tne.write("%02d.%02d.%04d %02d:%02d:%02d"%(when[2],when[1],when[0],when[3],when[4],when[5]))
-      tne.close()
-      return False
-   im.save(local+this_layer["ext"])
-   os.rmdir(local+"lock")
-   return local+this_layer["ext"]
+   if this_layer.get("cached", True):
+    if im.histogram() == ic.histogram():
+       tne = open (local+"tne", "w")
+       when = time.localtime()
+       tne.write("%02d.%02d.%04d %02d:%02d:%02d"%(when[2],when[1],when[0],when[3],when[4],when[5]))
+       tne.close()
+       return False
+   
+    im.save(local+this_layer["ext"])
+    os.rmdir(local+"lock")
+   return im
    
 def Tile (z, x, y, layer):
 
-   n1,n2,n3 = z,x,y
+   d_tuple = z,x,y
    this_layer = config.layers[layer]
    if "max_zoom" in this_layer:
     if z >= this_layer["max_zoom"]:
       return None
    if "transform_tile_number" in this_layer:
-    n1,n2,n3 = this_layer["transform_tile_number"](z,x,y)
-   remote = this_layer["remote_url"]%(n1,n2,n3)
-   local = config.tiles_cache + this_layer["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
-   if not os.path.exists("/".join(local.split("/")[:-1])):
+    d_tuple = this_layer["transform_tile_number"](z,x,y)
+   print >> sys.stderr, x, y, z
+   sys.stderr.flush()
+   remote = this_layer["remote_url"] % d_tuple
+   if this_layer.get("cached", True):
+    local = config.tiles_cache + this_layer["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
+    if not os.path.exists("/".join(local.split("/")[:-1])):
        os.makedirs("/".join(local.split("/")[:-1]))
+    try:
+        os.mkdir(local+"lock")
+    except OSError:
+      return None
+   
    try:
-    os.mkdir(local+"lock")
-   except OSError:
-    return None
-   urllib.urlretrieve (remote, local+ this_layer["ext"])
-   os.rmdir(local+"lock")
-   if not os.path.exists(local+ this_layer["ext"]):
-      return False
+     contents = urllib2.urlopen(remote).read()
+     im = Image.open(StringIO.StringIO(contents))  
+   except IOError:
+     if this_layer.get("cached", True):
+       os.rmdir(local+"lock")
+     return False
+   if this_layer.get("cached", True):
+     os.rmdir(local+"lock")
+     open(local+ this_layer["ext"], "w").write(contents)
+   
    if "dead_tile" in this_layer:
-    if filecmp.cmp(local+this_layer["ext"], this_layer["dead_tile"]):
-      tne = open (local+"tne", "w")
-      when = time.localtime()
-      tne.write("%02d.%02d.%04d %02d:%02d:%02d"%(when[2],when[1],when[0],when[3],when[4],when[5]))
-      tne.close()
-      os.remove(local+ this_layer["ext"])
+    dt = open(this_layer["dead_tile"],"r").read()
+    if contents == dt:
+      if this_layer.get("cached", True):
+        tne = open (local+"tne", "w")
+        when = time.localtime()
+        tne.write("%02d.%02d.%04d %02d:%02d:%02d"%(when[2],when[1],when[0],when[3],when[4],when[5]))
+        tne.close()
+        os.remove(local+ this_layer["ext"])
       return False
-   return local+this_layer["ext"]
+   return im

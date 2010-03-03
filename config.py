@@ -21,6 +21,7 @@ debug = True
 
 ## Directory for tiles cache. 
 tiles_cache = "/var/www/latlon/wms/cache/"
+install_path = "/var/www/latlon/wms/"
 
 #known_projs = {
     #"EPSG:4326": pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),
@@ -67,7 +68,7 @@ layers = {\
      "fetch": fetchers.Tile,		# function that fetches given tile. should return None if tile wasn't fetched
      "remote_url": "http://aerial.maps.yimg.com/ximg?v=1.8&t=a&s=256&r=1&x=%s&y=%s&z=%s",
      "transform_tile_number": lambda z,x,y: (x,y,z-1),
-     "dead_tile": "/var/www/latlon/wms/yahoo_nxt.jpg",
+     "dead_tile": install_path + "yahoo_nxt.jpg",
      "max_zoom": 18,
      "proj": 1,
 },\
@@ -79,7 +80,7 @@ layers = {\
      "fetch": fetchers.Tile,	# function that fetches given tile. should return None if tile wasn't fetched
      "remote_url": "http://sat01.maps.yandex.net/tiles?l=sat&v=1.14.0&x=%s&y=%s&z=%s",
      "transform_tile_number": lambda z,x,y: (x,y,z-1),
-     "dead_tile": "/var/www/latlon/wms/yandex_nxt.jpg",
+     "dead_tile": install_path + "yandex_nxt.jpg",
      "proj": 2,
 },\
 "osm": { \
@@ -91,8 +92,18 @@ layers = {\
      "remote_url": "http://c.tile.openstreetmap.org/%s/%s/%s.png",
      "transform_tile_number": lambda z,x,y: (z-1,x,y),
      "proj": 1,
-     "cache_ttl": 86400,
+     "cache_ttl": 864000,
 },\
+"osm-be": { \
+     "name": "OpenStreetMap mapnik",
+     "cached": False,
+     "scalable": False,                 # could zN tile be constructed of four z(N+1) tiles
+     "fetch": fetchers.Tile,    # function that fetches given tile. should return None if tile wasn't fetched
+     "remote_url": "http://d.tile.latlon.org/tiles/%s/%s/%s.png",
+     "transform_tile_number": lambda z,x,y: (z-1,x,y),
+     "proj": 1,     
+},\
+
 "irs":  { \
      "name": "Kosmosnimki.ru IRS Satellite",
      "prefix": "irs",                   # tile directory
@@ -100,8 +111,8 @@ layers = {\
      "scalable": False,                 # could zN tile be constructed of four z(N+1) tiles
      "fetch": fetchers.Tile, # function that fetches given tile. should return None if tile wasn't fetched
      "remote_url": "http://maps.kosmosnimki.ru/TileSender.ashx?ModeKey=tile&MapName=F7B8CF651682420FA1749D894C8AD0F6&LayerName=950FA578D6DB40ADBDFC6EEBBA469F4A&z=%s&x=%s&y=%s",
-     "transform_tile_number": lambda z,x,y: (z-1,int(-((int(math.pow(2,z-1)))/ 2)+x),int(-((int(math.pow(2,z-1)))/ 2)+ int(math.pow(2,z-1)-(y+1)))),
-     "dead_tile": "/var/www/latlon/wms/irs_nxt.jpg",
+     "transform_tile_number": lambda z,x,y: (z-1,int(-((int(2**(z-1)))/ 2)+x),int(-((int(2**(z-1)))/ 2)+ int(2**(z-1)-(y+1)))),
+     "dead_tile": install_path + "irs_nxt.jpg",
      "max_zoom": 16,
      "proj": 2,
 },\

@@ -328,67 +328,77 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
    trybetter - should we try to combine this tile from better ones?
    real - should we return the tile even in not good quality?
    """
-   local = config.tiles_cache + config.layers[layer]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
-   ext = config.layers[layer]["ext"]
-   if "cache_ttl" in config.layers[layer]:
-    for ex in [ext, "dsc."+ext, "ups."+ext, "tne"]:
-     f = local+ex
-     if os.path.exists(f):
-       if (os.stat(f).st_mtime < (time.time()-config.layers[layer]["cache_ttl"])):
-        os.remove(f)
+   if config.layers[layer].get("cached", True):
+    local = config.tiles_cache + config.layers[layer]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
+    ext = config.layers[layer]["ext"]
+    if "cache_ttl" in config.layers[layer]:
+      for ex in [ext, "dsc."+ext, "ups."+ext, "tne"]:
+       f = local+ex
+       if os.path.exists(f):
+         if (os.stat(f).st_mtime < (time.time()-config.layers[layer]["cache_ttl"])):
+           os.remove(f)
 
-   gpt_image = False
-   if not os.path.exists("/".join(local.split("/")[:-1])):
-       os.makedirs("/".join(local.split("/")[:-1]))
-   if not os.path.exists(local+"tne") and not os.path.exists(local+"lock"):
-    if os.path.exists(local+ext):			# First, look for tile in cache
-      try:
-	  im1 = Image.open(local+ext)
-          a = im1.load()
-	  return im1         
-      except IOError:
-        if os.path.exists(local+"lock"):
-          return None
-        else:
-	  os.remove(local+ext)				# # Cached tile is broken - remove it
+    gpt_image = False
+    if not os.path.exists("/".join(local.split("/")[:-1])):
+        os.makedirs("/".join(local.split("/")[:-1]))
+    if not os.path.exists(local+"tne") and not os.path.exists(local+"lock"):
+      if os.path.exists(local+ext):			# First, look for tile in cache
+        try:
+            im1 = Image.open(local+ext)
+            a = im1.load()
+            return im1
+        except IOError:
+          if os.path.exists(local+"lock"):
+            return None
+          else:
+            os.remove(local+ext)				# # Cached tile is broken - remove it
 
 
-    if config.layers[layer]["scalable"] and (z<18) and trybetter:      # Second, try to glue image of better ones
-        if os.path.exists(local+"ups."+ext):
-            im = Image.open(local+"ups."+ext)
+      if config.layers[layer]["scalable"] and (z<18) and trybetter:      # Second, try to glue image of better ones
+          if os.path.exists(local+"ups."+ext):
+              im = Image.open(local+"ups."+ext)
+              return im
+          im = Image.new("RGBA", (512, 512))
+          im1 = tile_image(layer, z+1,x*2,y*2, start_time)
+          if im1:
+           im2 = tile_image(layer, z+1,x*2+1,y*2, start_time)
+           if im2:
+            im3 = tile_image(layer, z+1,x*2,y*2+1, start_time)
+            if im3:
+              im4 = tile_image(layer, z+1,x*2+1,y*2+1, start_time)
+              if im4:
+                im.paste(im1,(0,0))
+                im.paste(im2,(256,0))
+                im.paste(im3,(0,256))
+                im.paste(im4,(256,256))
+                im = im.resize((256,256),Image.ANTIALIAS)
+                im.save(local+"ups."+ext)
+                return im
+      if not again:
+
+        if "fetch" in config.layers[layer]:
+          delta = (datetime.datetime.now() - start_time)
+          delta = delta.seconds + delta.microseconds/1000000.
+          if (config.deadline > delta) or (z < 4):
+
+            im = config.layers[layer]["fetch"](z,x,y,layer)    # Try fetching from outside
+            if im:
+              return im
+    if real and (z>1):
+          im = tile_image(layer, z-1, int(x/2), int(y/2), start_time,  again=False, trybetter=False, real=True)
+          if im:
+            im = im.crop((128 * (x % 2), 128 * (y % 2), 128 * (x % 2) + 128, 128 * (y % 2) + 128))
+            im = im.resize((256,256), Image.BILINEAR)
             return im
-	im = Image.new("RGBA", (512, 512))
-	im1 = tile_image(layer, z+1,x*2,y*2, start_time)
-        if im1:
-	 im2 = tile_image(layer, z+1,x*2+1,y*2, start_time)
-         if im2:  
-	  im3 = tile_image(layer, z+1,x*2,y*2+1, start_time)
-          if im3:
-	    im4 = tile_image(layer, z+1,x*2+1,y*2+1, start_time)
-            if im4:
-	     im.paste(im1,(0,0))
-	     im.paste(im2,(256,0))      
-	     im.paste(im3,(0,256))     
-	     im.paste(im4,(256,256))
-	     im = im.resize((256,256),Image.ANTIALIAS)
-	     im.save(local+"ups."+ext)
-	     return im
-    if not again:
-     
-     if "fetch" in config.layers[layer]:
-        delta = (datetime.datetime.now() - start_time)
-        delta = delta.seconds + delta.microseconds/1000000.
-        if  (config.deadline > delta) or (z < 4):
-         
-         if config.layers[layer]["fetch"](z,x,y,layer):    # Try fetching from outside
-           return tile_image(layer,z,x,y, start_time,again=True)
-   if real and (z>1): 
-        im = tile_image(layer, z-1, int(x/2), int(y/2), start_time,  again=False, trybetter=False, real=True)
-        if im:
-          im = im.crop((128 * (x % 2), 128 * (y % 2), 128 * (x % 2) + 128, 128 * (y % 2) + 128))
-          im = im.resize((256,256), Image.BILINEAR)
-          return im
+   else:
+      if "fetch" in config.layers[layer]:
+          delta = (datetime.datetime.now() - start_time)
+          delta = delta.seconds + delta.microseconds/1000000.
+          if (config.deadline > delta) or (z < 4):
 
+            im = config.layers[layer]["fetch"](z,x,y,layer)    # Try fetching from outside
+            if im:
+              return im
 
 def getimg (file, bbox, size, layer, gpx, rovarinfo, force, start_time):
    if gpx: 
