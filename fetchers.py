@@ -51,8 +51,9 @@ def Wms4326as3857 (z, x, y, layer):
    if width is not 256 and height is not 256:
     im = im.resize((256,256),Image.ANTIALIAS)
    im = im.convert("RGBA")
-   ic = Image.new("RGBA", (256, 256), "white")
+   
    if this_layer.get("cached", True):
+    ic = Image.new("RGBA", (256, 256), "white")
     if im.histogram() == ic.histogram():
        tne = open (local+"tne", "w")
        when = time.localtime()

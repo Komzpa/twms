@@ -19,14 +19,19 @@ import os
 import math
 import sys
 import urllib
-import config
-import pyproj
+try:
+  import pyproj
+except ImportError:
+   pass
 import ImageEnhance
 import StringIO
-import tilenames
 import re
 import time
+
+import tilenames
 import capabilities
+import config
+import bbox
 
 
 if __name__ != '__main__':
@@ -112,7 +117,8 @@ def handler(req):
     width = int(data.get("width",data.get("WIDTH",width)))
     srs = data.get("srs", data.get("SRS", "EPSG:4326"))
     if srs == "EPSG:4326":
-       p = pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
+       pass
+       #p = pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
     elif srs == "EPSG:3395":
         p = pyproj.Proj('+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs')
         la1,lo1,la2,lo2 = req_bbox
@@ -125,15 +131,9 @@ def handler(req):
         la1,lo1 = p(la1,lo1, inverse=True)
         la2,lo2 = p(la2,lo2, inverse=True)
         req_bbox = (la1,lo1,la2,lo2)
-        
-    flip_h = False
-    flip_v = False
-    if req_bbox[0] > req_bbox[2]:
-      flip_h = True
-      req_bbox = (req_bbox[2],req_bbox[1],req_bbox[0],req_bbox[3])
-    if req_bbox[1] > req_bbox[3]:
-      flip_v = True
-      req_bbox = (req_bbox[0],req_bbox[3],req_bbox[2],req_bbox[1])
+
+    req_bbox, flip_h, flip_v = bbox.normalize(req_bbox)
+
     if (width > 4048) or (height > 4048):
       width = 1024
       height = 0
@@ -328,6 +328,9 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
    trybetter - should we try to combine this tile from better ones?
    real - should we return the tile even in not good quality?
    """
+   x = x % (2 ** (z-1))
+   if y<0 or y >= (2 ** (z-1)):
+     return None
    if config.layers[layer].get("cached", True):
     local = config.tiles_cache + config.layers[layer]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
     ext = config.layers[layer]["ext"]
@@ -358,7 +361,7 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
           if os.path.exists(local+"ups."+ext):
               im = Image.open(local+"ups."+ext)
               return im
-          im = Image.new("RGBA", (512, 512))
+          im = Image.new("RGBA", (512, 512), (0,0,0,0))
           im1 = tile_image(layer, z+1,x*2,y*2, start_time)
           if im1:
            im2 = tile_image(layer, z+1,x*2+1,y*2, start_time)
@@ -428,8 +431,8 @@ def getimg (file, bbox, size, layer, gpx, rovarinfo, force, start_time):
         im1 = Image.new("RGBA", (256, 256), (0,0,0,0))
 
 
-     out.paste(im1,((x - from_tile_x)*256, (-to_tile_y + y )*256,))     
-   out = out.crop(bbox)   
+     out.paste(im1,((x - from_tile_x)*256, (-to_tile_y + y )*256,))
+   out = out.crop(bbox)
    if (H == W) and (H == 0):
      W, H = out.size
    if H == 0:

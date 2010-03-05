@@ -1,0 +1,16 @@
+ABOUT
+  tWMS is a script that connects World of Tiles and World of WMS.
+
+
+
+KNOWN BUGS
+ - Image of any size can be requested if one of (width, height) is omitted
+
+
+TODO
+ - Make fetchers work with proxy
+ - Standalone run
+ - Full reprojection support
+ - Imagery realignment
+ - Per-layer bounding boxes 
+

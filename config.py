@@ -67,7 +67,7 @@ layers = {\
      "scalable": False,			# could zN tile be constructed of four z(N+1) tiles
      "fetch": fetchers.Tile,		# function that fetches given tile. should return None if tile wasn't fetched
      "remote_url": "http://aerial.maps.yimg.com/ximg?v=1.8&t=a&s=256&r=1&x=%s&y=%s&z=%s",
-     "transform_tile_number": lambda z,x,y: (x,y,z-1),
+     "transform_tile_number": lambda z,x,y: (x,((2**(z-1)/2)-1)-y,z),
      "dead_tile": install_path + "yahoo_nxt.jpg",
      "max_zoom": 18,
      "proj": 1,
@@ -101,7 +101,8 @@ layers = {\
      "fetch": fetchers.Tile,    # function that fetches given tile. should return None if tile wasn't fetched
      "remote_url": "http://d.tile.latlon.org/tiles/%s/%s/%s.png",
      "transform_tile_number": lambda z,x,y: (z-1,x,y),
-     "proj": 1,     
+     "proj": 1,
+     "data_bounding_box": (26.925911391627,53.565742941102,28.393959487271,54.27899858574),
 },\
 
 "irs":  { \
