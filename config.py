@@ -18,32 +18,18 @@ import fetchers
 
 
 debug = True
+tiles_cache = "/var/www/latlon/wms/cache/"                   # where to put cache
+install_path = "/var/www/latlon/wms/"                        # where to look for broken tiles and other stuff
+gpx_cache = "/var/www/latlon/wms/traces/"                    # where to store cached OSM GPX files
+deadline = 45                                                # number of seconds that are given to make up image
+default_max_zoom = 18                                        # can be overridden per layer
+geometry_color = "#ff0000"                                   # default color for overlayed vectors
+default_layers = "osm"                                       # layer(s) to show when no layers given explicitly
 
-## Directory for tiles cache. 
-tiles_cache = "/var/www/latlon/wms/cache/"
-install_path = "/var/www/latlon/wms/"
-
-#known_projs = {
-    #"EPSG:4326": pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),
-    #"EPSG:3395":
-       #"proj": '+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs',
-       #"bounds":(-180,-85.0511287798,180,85.0511287798)
-    #"EPSG:3857":{
-       #"proj": '+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs',
-       #"bounds": (-180,-85.0511287798,180,85.0511287798)
- #},
-    #"EPSG:900913": pyproj.Proj('+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs')
-
-#}
-
-
-
-
-
-deadline = 45 # number of seconds that are given to make up image
-service_url = "http://wms.play.latlon.org/"
-wms_name = "latlon.org web map service"
-default_bbox = (-180.0,-85.0511287798,180.0,85.0511287798)   # spherical mercator maximum. used for GetCapabilities
+## stuff used for GetCapabilities
+service_url = "http://wms.play.latlon.org/"                  # URL service installed at
+wms_name = "latlon.org web map service"                      
+default_bbox = (-180.0,-85.0511287798,180.0,85.0511287798)   # spherical mercator maximum. 
 default_format = "image/jpeg"
 contact_person = {
 "mail": "",
@@ -58,7 +44,7 @@ layers = {\
      "prefix": "DGsat",			# tile directory
      "ext": "jpg",			# tile images extension
      "scalable": True,			# could zN tile be constructed of four z(N+1) tiles
-     "proj": 1,
+     "proj": "EPSG:3857",
 },\
 "yhsat": { \
      "name": "Yahoo Satellite",
@@ -70,7 +56,7 @@ layers = {\
      "transform_tile_number": lambda z,x,y: (x,((2**(z-1)/2)-1)-y,z),
      "dead_tile": install_path + "yahoo_nxt.jpg",
      "max_zoom": 18,
-     "proj": 1,
+     "proj": "EPSG:3857",
 },\
 "yasat": { \
      "name": "Yandex Satellite",
@@ -81,7 +67,7 @@ layers = {\
      "remote_url": "http://sat01.maps.yandex.net/tiles?l=sat&v=1.14.0&x=%s&y=%s&z=%s",
      "transform_tile_number": lambda z,x,y: (x,y,z-1),
      "dead_tile": install_path + "yandex_nxt.jpg",
-     "proj": 2,
+     "proj": "EPSG:3395",
 },\
 "osm": { \
      "name": "OpenStreetMap mapnik",
@@ -91,7 +77,7 @@ layers = {\
      "fetch": fetchers.Tile,	# function that fetches given tile. should return None if tile wasn't fetched
      "remote_url": "http://c.tile.openstreetmap.org/%s/%s/%s.png",
      "transform_tile_number": lambda z,x,y: (z-1,x,y),
-     "proj": 1,
+     "proj": "EPSG:3857",
      "cache_ttl": 864000,
 },\
 "osm-be": { \
@@ -101,7 +87,7 @@ layers = {\
      "fetch": fetchers.Tile,    # function that fetches given tile. should return None if tile wasn't fetched
      "remote_url": "http://d.tile.latlon.org/tiles/%s/%s/%s.png",
      "transform_tile_number": lambda z,x,y: (z-1,x,y),
-     "proj": 1,
+     "proj": "EPSG:3857",
      "data_bounding_box": (26.925911391627,53.565742941102,28.393959487271,54.27899858574),
 },\
 
@@ -115,7 +101,7 @@ layers = {\
      "transform_tile_number": lambda z,x,y: (z-1,int(-((int(2**(z-1)))/ 2)+x),int(-((int(2**(z-1)))/ 2)+ int(2**(z-1)-(y+1)))),
      "dead_tile": install_path + "irs_nxt.jpg",
      "max_zoom": 16,
-     "proj": 2,
+     "proj": "EPSG:3395",
 },\
 "SAT":  { \
      "name": "Google Satellite Partial",
@@ -123,7 +109,7 @@ layers = {\
      "ext": "jpg",                      # tile images extension
      "scalable": True,                 # could zN tile be constructed of four z(N+1) tiles
      "max_zoom": 19,
-     "proj": 1,
+     "proj": "EPSG:3857",
 },\
 "navitel":  { \
      "name": "Navitel Navigator Maps",
@@ -133,7 +119,7 @@ layers = {\
      "fetch": fetchers.Tile, # function that fetches given tile. should return None if tile wasn't fetched
      "remote_url": "http://map.navitel.su/navitms.fcgi?t=%08i,%08i,%02i",
      "transform_tile_number": lambda z,x,y: (x, 2**(z-1)-y-1, z-1),
-     "proj": 1,
+     "proj": "EPSG:3857",
 },\
 "gshtab":  { \
      "name": "Genshtab 100k maps of Belarus",
@@ -143,7 +129,7 @@ layers = {\
      "fetch": fetchers.Wms4326as3857, # function that fetches given tile. should return None if tile wasn't fetched
      "wms_4326": "http://wms.latlon.org/cgi-bin/ms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=GS-100k-N-34,GS-100k-N-35,GS-100k-N-36&STYLES=&SRS=EPSG:4326&FORMAT=image/png&",
      "max_zoom": 16,
-     "proj": 1,
+     "proj": "EPSG:3857",
 },\
 
 }

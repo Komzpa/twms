@@ -55,6 +55,5 @@ def normalize (bbox):
       bbox = (bbox[0],bbox[3],bbox[2],bbox[1])
    
    
-   print >> sys.stderr, bbox, "!!!"
-   sys.stderr.flush()
+
    return bbox, flip_h, flip_v

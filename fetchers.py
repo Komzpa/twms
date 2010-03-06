@@ -14,7 +14,6 @@
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
-import urllib
 import urllib2
 import filecmp
 import time
@@ -55,7 +54,7 @@ def Wms4326as3857 (z, x, y, layer):
    if this_layer.get("cached", True):
     ic = Image.new("RGBA", (256, 256), "white")
     if im.histogram() == ic.histogram():
-       tne = open (local+"tne", "w")
+       tne = open (local+"tne", "wb")
        when = time.localtime()
        tne.write("%02d.%02d.%04d %02d:%02d:%02d"%(when[2],when[1],when[0],when[3],when[4],when[5]))
        tne.close()
@@ -95,13 +94,13 @@ def Tile (z, x, y, layer):
      return False
    if this_layer.get("cached", True):
      os.rmdir(local+"lock")
-     open(local+ this_layer["ext"], "w").write(contents)
+     open(local+ this_layer["ext"], "wb").write(contents)
    
    if "dead_tile" in this_layer:
     dt = open(this_layer["dead_tile"],"r").read()
     if contents == dt:
       if this_layer.get("cached", True):
-        tne = open (local+"tne", "w")
+        tne = open (local+"tne", "wb")
         when = time.localtime()
         tne.write("%02d.%02d.%04d %02d:%02d:%02d"%(when[2],when[1],when[0],when[3],when[4],when[5]))
         tne.close()

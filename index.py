@@ -14,15 +14,11 @@
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
-from PIL import Image, ImageDraw, ImageFilter, ImageOps
+from PIL import Image, ImageFilter, ImageOps
 import os
 import math
 import sys
 import urllib
-try:
-  import pyproj
-except ImportError:
-   pass
 import ImageEnhance
 import StringIO
 import re
@@ -32,7 +28,9 @@ import tilenames
 import capabilities
 import config
 import bbox
-
+import projections
+import drawing
+from gpxparse import GPXParser
 
 if __name__ != '__main__':
  try: 
@@ -40,11 +38,6 @@ if __name__ != '__main__':
   import datetime  
  except ImportError:
    pass
-
-
-layer = ""
-
-
 
  
 def handler(req):
@@ -55,16 +48,20 @@ def handler(req):
     formats = {"image/gif":"GIF","image/jpeg":"JPEG","image/jpg":"JPEG","image/png":"PNG","image/bmp":"BMP"}
 
     data = util.FieldStorage(req)
-    gpx = data.get("gpx",None) 
+    gpx = data.get("gpx",None)
+    track = False
     if not gpx:
-     req_bbox = "27.6518898,53.8683186,27.6581944,53.8720359"
+      req_bbox = (27.6518898,53.8683186,27.6581944,53.8720359)
     else:
-     req_bbox = None
+      local_gpx = config.gpx_cache + "%s.gpx" % gpx
+      if not os.path.exists (local_gpx):
+          urllib.urlretrieve ("http://www.openstreetmap.org/trace/%s/data" % gpx, local_gpx)
+      track = GPXParser(local_gpx)
+      req_bbox = track.bbox
     width = 0
     height = 0
-    zoom = 18
-    layer = ""
 
+    
 
    
     req_type = data.get("REQUEST",data.get("request","GetMap"))
@@ -75,20 +72,20 @@ def handler(req):
      req.write (text)
      return apache.OK
 
-    layer = data.get("layer",data.get("layers",data.get("LAYERS","osm")))
+    layer = data.get("layers",data.get("LAYERS", config.default_layers))
     format = data.get("format", data.get("FORMAT", config.default_format))
     if format not in formats:
      req.write("Invalid Format")
      return 500
     req.content_type = format
-    x = int(data.get("x",data.get("X",0)))
-    y = int(data.get("y",data.get("Y",0)))
-    z = int(data.get("z",data.get("Z",1)))
-    z += 1
+
 
     force = data.get("force","").split(",")
     filt = data.get ("filter","")
     if req_type == "GetTile":
+      x = int(data.get("x",data.get("X",0)))
+      y = int(data.get("y",data.get("Y",0)))
+      z = int(data.get("z",data.get("Z",1))) + 1
       width=256
       height=256
       height = int(data.get("height",data.get("HEIGHT",height)))
@@ -106,31 +103,12 @@ def handler(req):
       req_bbox = "%s,%s,%s,%s" % tilenames.tileEdges(x,y,z-1)
 
 
-
-
-
-
-
-    if data.get("bbox",data.get("BBOX",None)) or req_bbox:
+    if data.get("bbox",data.get("BBOX",None)):
       req_bbox = tuple(map(float,data.get("bbox",data.get("BBOX",req_bbox)).split(",")))
     height = int(data.get("height",data.get("HEIGHT",height)))
     width = int(data.get("width",data.get("WIDTH",width)))
     srs = data.get("srs", data.get("SRS", "EPSG:4326"))
-    if srs == "EPSG:4326":
-       pass
-       #p = pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
-    elif srs == "EPSG:3395":
-        p = pyproj.Proj('+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs')
-        la1,lo1,la2,lo2 = req_bbox
-        la1,lo1 = p(la1,lo1, inverse=True)
-        la2,lo2 = p(la2,lo2, inverse=True)
-        req_bbox = (la1,lo1,la2,lo2)
-    elif srs == "EPSG:900913" or srs == "EPSG:3857" :
-        p = pyproj.Proj('+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs')
-        la1,lo1,la2,lo2 = req_bbox
-        la1,lo1 = p(la1,lo1, inverse=True)
-        la2,lo2 = p(la2,lo2, inverse=True)
-        req_bbox = (la1,lo1,la2,lo2)
+    req_bbox = projections.to4326(req_bbox, srs)   
 
     req_bbox, flip_h, flip_v = bbox.normalize(req_bbox)
 
@@ -141,16 +119,13 @@ def handler(req):
       width = 350
     
 
-    rovarinfo = data.get ("rovar", None)
-
-    
     layer = layer.split(",")
     
     imgs = 1.
-    result_img = getimg(req, req_bbox, (height, width), layer.pop(), gpx, rovarinfo, force, start_time)
+    result_img = getimg(req, req_bbox, (height, width), layer.pop(), force, start_time)
     width, height =  result_img.size
     for ll in layer:
-     result_img = Image.blend(result_img, getimg(req, req_bbox, (height, width), ll, gpx,  rovarinfo, force, start_time), imgs/(imgs+1.))
+     result_img = Image.blend(result_img, getimg(req, req_bbox, (height, width), ll, force, start_time), imgs/(imgs+1.))
      imgs += 1.
 
 ##Applying filters
@@ -163,8 +138,6 @@ def handler(req):
 
        result_img = Image.eval(result_img, lambda x: int((x+512)/3))
        outtbw = result_img.convert("L")
-
-
 
        outtbw = outtbw.convert("RGB")
        result_img = Image.blend(result_img, outtbw, 0.62)
@@ -194,18 +167,9 @@ def handler(req):
     wkt = data.get("wkt",data.get("WKT",None))
     
     if wkt: 
-      wkt = wkt.replace("((","(")
-      for obj in wkt.split("),"):
-
-       wkt_canvas = result_img.copy()
-       name, coords = obj.split("(")
-       coords = coords.replace(")","")
-       coords = coords.split(",")
-       coords = [ [float(t) for t in x.split(" ")] for x in coords]
-       coords = [(x[1],x[0]) for x in coords]
-       render_vector(name,wkt_canvas, req_bbox,coords)
-       result_img = Image.blend(result_img, wkt_canvas, 0.5)
-
+      result_img = drawing.wkt(wkt, result_img, req_bbox, srs)
+    if gpx:
+      result_img = drawing.gpx(track, result_img, req_bbox, srs)
 
     if flip_h:
       result_img = ImageOps.flip(result_img)
@@ -217,109 +181,23 @@ def handler(req):
 
     return apache.OK
 
-def render_vector(geometry, img, bbox, coords):
-    """
-Renders a vector geomatry on image.
-    """
-    draw = ImageDraw.Draw(img)
-    lo1, la1, lo2, la2 = bbox
-    W,H = img.size
-    prevcoord = False
-    coords = [(int((coord[1]-lo1)*(W-1)/abs(lo2-lo1)), int((la2-coord[0])*(H-1)/(la2-la1))) for coord in coords]
-    if geometry == "LINESTRING":
-       draw.line (coords, fill="#ff0000", width=3)
-       
-       
-    elif geometry == "POINT":
-       draw.ellipse((coords[0][0]-3,coords[0][1]-3,coords[0][0]+3,coords[0][1]+3),fill="#00ee00",outline="#00ff00")
-    elif geometry == "POLYGON":
-       draw.polygon(coords, fill="#0000ff", outline="#0000cc")
-
-
-
-def llz2txy(lat, lon, zoom=18, proj = 1):
-    """
-    Converts (lat,lon,zoom) to tile number and pixel-coordinates.
-    proj is: 1 - default projection
-             2 - Yandex projection
-    """
-
-    if proj == 1:    
-            zoom = zoom-1
-            sin_phi = math.sin(lat * math.pi /180);
-            norm_x = lon / 180;
-            norm_y = (0.5 * math.log((1 + sin_phi) / (1 - sin_phi))) / math.pi;
-            this_y = math.pow(2, zoom) * ((1 - norm_y) / 2);
-            this_x = math.pow(2, zoom) * ((norm_x + 1) / 2); 
-            cut_x = int(256*(this_x - int(this_x)))
-	    cut_y = int(256*(this_y - int(this_y)))
-	    this_x = int(this_x)
-	    this_y = int(this_y)
-	    return (this_x, this_y, cut_x, cut_y)
-
-    else:
-
-
-        FINETUNE_X = 0#24
-        FINETUNE_Y= 0#36
-
-        M_PI_4 = 0.78539816339744830962
-        YANDEX_Rn = 6378137.0
-        YANDEX_E = 0.0818191908426
-        YANDEX_A = 20037508.342789
-        YANDEX_F = 53.5865938
-        YANDEX_AB = 0.00335655146887969400
-        YANDEX_BB = 0.00000657187271079536
-        YANDEX_CB = 0.00000001764564338702
-        YANDEX_DB = 0.00000000005328478445
-        
-
-        tmp=math.tan(M_PI_4+(lat*math.pi/180.)/2.0);
-        pow_tmp = math.pow(math.tan(M_PI_4+math.asin(YANDEX_E*math.sin(lat*math.pi/180.))/2.0),YANDEX_E);
-        x = (YANDEX_Rn*(lon*math.pi/180.) + YANDEX_A) * YANDEX_F;
-        y = (YANDEX_A - (YANDEX_Rn * math.log (tmp / pow_tmp))) * YANDEX_F;
-
-        this_x = (int(x/64)+FINETUNE_X)/256.0/(2**18)*(2**zoom)
-	this_y = (int(y/64)+FINETUNE_Y)/256.0/(2**18)*(2**zoom)
-        cut_x = int(256*(this_x - int(this_x)))
-	cut_y = int(256*(this_y - int(this_y)))
-	this_x = int(this_x)
-	this_y = int(this_y)
-	return (this_x, this_y, cut_x, cut_y)
-
 
 
 def getbestzoom (bbox, size, layer):
    """
    Calculate a best-fit zoom level
    """
-   max_zoom = config.layers[layer].get("max_zoom",18)
+   max_zoom = config.layers[layer].get("max_zoom",config.default_max_zoom)
    for i in range (1,max_zoom):
-     cx1, cy1, px1, py1 =  llz2txy (bbox[1],bbox[0], i, proj=config.layers[layer]["proj"])
-     cx2, cy2, px2, py2 =  llz2txy (bbox[3],bbox[2], i, proj=config.layers[layer]["proj"])
+     cx1, cy1, cx2, cy2 =  projections.tile_by_bbox (bbox, i, config.layers[layer]["proj"])
      if size[1] is not 0:
-      if ((cx2-cx1)*256+px2-px1) >= size[1] :
+      if (cx2-cx1)*256 >= size[1] :
        return i
      if size[0] is not 0:
-      if ((cy1-cy2)*256+py1-py2) >= size[0]:
+      if (cy1-cy2)*256 >= size[0]:
        return i
 
    return max_zoom
-
-def get_gpx_from_rovarinfo (id):
-   import urllib2 
-   
-   route = urllib2.urlopen ("http://rovarinfo.rovarsoft.com/?q=route-display/%s"%id).read()
-   rgexpr  = re.compile(r'LINESTRING\((.*)\)')
-   line, = rgexpr.search(route).groups()
-   coords = line.split(",")
-   coords = [ [float(t) for t in x.split(" ")] for x in coords]
-   coords = [(x[1],x[0]) for x in coords]
-   return coords
-   
-
-   
-   
 
 def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real = False):
    """
@@ -403,25 +281,25 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
             if im:
               return im
 
-def getimg (file, bbox, size, layer, gpx, rovarinfo, force, start_time):
-   if gpx: 
-     from gpxparse import GPXParser
-     if not os.path.exists ("/var/www/latlon/wms/traces/%s.gpx" % gpx):
-        urllib.urlretrieve ("http://www.openstreetmap.org/trace/%s/data" % gpx , "/var/www/latlon/wms/traces/%s.gpx" % gpx)
-     track = GPXParser("/var/www/latlon/wms/traces/%s.gpx" % gpx)
-     if not bbox:
-      bbox = track.bbox          
+def getimg (file, bbox, size, layer, force, start_time):
    
    H,W = size
    
    zoom = getbestzoom (bbox,size,layer)
    lo1, la1, lo2, la2 = bbox
-   from_tile_x, from_tile_y, cut_from_x, cut_from_y = llz2txy (la1,lo1,zoom,  proj=config.layers[layer]["proj"])
-   to_tile_x, to_tile_y, cut_to_x, cut_to_y = llz2txy (la2,lo2,zoom, proj=config.layers[layer]["proj"])
+   from_tile_x, from_tile_y, to_tile_x, to_tile_y = projections.tile_by_bbox(bbox, zoom, config.layers[layer]["proj"])
+   cut_from_x = int(256*(from_tile_x - int(from_tile_x)))
+   cut_from_y = int(256*(from_tile_y - int(from_tile_y)))
+   cut_to_x = int(256*(to_tile_x - int(to_tile_x)))
+   cut_to_y = int(256*(to_tile_y - int(to_tile_y)))
+    
+   from_tile_x, from_tile_y = int(from_tile_x), int(from_tile_y)
+   to_tile_x, to_tile_y = int(to_tile_x), int(to_tile_y)
    bbox = (cut_from_x, cut_to_y, 256*(to_tile_x-from_tile_x)+cut_to_x, 256*(from_tile_y-to_tile_y)+cut_from_y )
    x = 256*(to_tile_x-from_tile_x+1)
    y = 256*(from_tile_y-to_tile_y+1)
-
+   print >> sys.stderr, x, y
+   sys.stderr.flush()
    out = Image.new("RGBA", (x, y))
    for x in range (from_tile_x, to_tile_x+1):
     for y in range (to_tile_y, from_tile_y+1):
@@ -442,38 +320,5 @@ def getimg (file, bbox, size, layer, gpx, rovarinfo, force, start_time):
    
    if "noresize" not in force:
     out = out.resize((W,H), Image.ANTIALIAS)
-   
-   
-   if rovarinfo:
-    draw = ImageDraw.Draw (out)
-    prevcoord = None
-    
-    for coord in get_gpx_from_rovarinfo (rovarinfo):
-       x = int((coord[1]-lo1)*(W-1)/abs(lo2-lo1))
-       y = int((la2-coord[0])*(H-1)/(la2-la1))
-       if not prevcoord:
-          prevcoord = (x,y)	
-       draw.line ([prevcoord, (x,y)], fill="#FF7F24", width=3)
-       draw.line ([ (x,y), prevcoord], fill="#FF7F24", width=3)
-       if math.sqrt(reduce(lambda a,b: a*a+b*b,map(lambda c,d: abs(c-d) ,(x,y),prevcoord))) > 4:
-        prevcoord = (x,y)       
-   if gpx:
-    draw = ImageDraw.Draw (out)
 
-    
-    for i in track.tracks.keys(): 
-     prevcoord = None     
-     for coord in track.getTrack(i):
-     #for coord in get_gpx_from_rovarinfo (3):
-       x = int((coord[1]-lo1)*(W-1)/abs(lo2-lo1))
-       y = int((la2-coord[0])*(H-1)/(la2-la1))
-       if not prevcoord:
-          prevcoord = (x,y)	
-       draw.line ([prevcoord, (x,y)], fill="#FF7F24", width=3)
-       draw.line ([ (x,y), prevcoord], fill="#FF7F24", width=3)
-       #draw.line ([prevcoord, (x,y)], fill="#FF0000", width=1)
-       draw.line ([ (x,y), (x,y)], fill="#FF0000", width=1)
-
-       if math.sqrt(reduce(lambda a,b: a*a+b*b,map(lambda c,d: abs(c-d) ,(x,y),prevcoord))) > 4:
-        prevcoord = (x,y)
    return out
