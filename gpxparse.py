@@ -62,4 +62,4 @@ class GPXParser:
     times = self.tracks[name].keys()
     times.sort()
     points = [self.tracks[name][time] for time in times]
-    return [(point['lat'],point['lon']) for point in points]
+    return [(point['lon'],point['lat']) for point in points]

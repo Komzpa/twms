@@ -18,7 +18,7 @@ import sys
 
 def point_is_in(bbox, point):
    """
-   Checks whether point is in bbox
+   Checks whether EPSG:4326 point is in bbox
    """
    bbox = normalize(bbox)[0]
    
@@ -26,7 +26,7 @@ def point_is_in(bbox, point):
 
 def bbox_is_in(bbox_outer, bbox_to_check, fully = True):
    """
-   Checks whether bbox is inside outer
+   Checks whether EPSG:4326 bbox is inside outer
    """
    bo = normalize(bbox_outer)[0]
    bc = normalize(bbox_to_check)[0]
@@ -38,7 +38,7 @@ def bbox_is_in(bbox_outer, bbox_to_check, fully = True):
 
 def normalize (bbox):
    """
-   Normalizes bbox order. Returns normalized bbox, and whether it was flipped on both axes.
+   Normalizes EPSG:4326 bbox order. Returns normalized bbox, and whether it was flipped on both axes.
    """
 
    flip_h = False

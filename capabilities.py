@@ -18,6 +18,7 @@
 
 
 import config
+import projections
 
 def get(version):
    content_type = "text/xml"
@@ -98,12 +99,12 @@ def get(version):
                 </Exception>
                 <Layer>
                         <Title>""" + config.wms_name + """</Title>
-                        <Abstract/>
-                        <SRS>EPSG:4326</SRS>
-                        <SRS>EPSG:3395</SRS>
-                        <SRS>EPSG:3857</SRS>
-                        <SRS>EPSG:900913</SRS>
-                        <LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
+                        <Abstract/>"""
+      pset = set(projections.projs.keys())
+      pset = pset.union(set(projections.proj_alias.keys()))
+      for proj in pset:
+           req += "<SRS>%s</SRS>" % proj
+      req += """<LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
                         <BoundingBox SRS="EPSG:4326" minx="-184" miny="85.0511287798" maxx="180" maxy="85.0511287798"/>
 """
       
@@ -197,11 +198,12 @@ def get(version):
                 </Exception>
                 <VendorSpecificCapabilities/>
                 <Layer>
-                        <Title>World Map</Title>
-                        <SRS>EPSG:4326</SRS>
-                        <SRS>EPSG:3395</SRS>
-                        <SRS>EPSG:3857</SRS>
-                        <SRS>EPSG:900913</SRS>
+                        <Title>World Map</Title>"""
+      pset = set(projections.projs.keys())
+      pset = pset.union(set(projections.proj_alias.keys()))
+      for proj in pset:
+           req += "<SRS>%s</SRS>" % proj
+      req += """
                         <LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
                         <BoundingBox SRS="EPSG:4326" minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
 """

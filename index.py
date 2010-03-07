@@ -24,7 +24,6 @@ import StringIO
 import re
 import time
 
-import tilenames
 import capabilities
 import config
 import bbox
@@ -48,16 +47,17 @@ def handler(req):
     formats = {"image/gif":"GIF","image/jpeg":"JPEG","image/jpg":"JPEG","image/png":"PNG","image/bmp":"BMP"}
 
     data = util.FieldStorage(req)
+    srs = data.get("srs", data.get("SRS", "EPSG:4326"))
     gpx = data.get("gpx",None)
     track = False
     if not gpx:
-      req_bbox = (27.6518898,53.8683186,27.6581944,53.8720359)
+      req_bbox = projections.from4326((27.6518898,53.8683186,27.6581944,53.8720359), srs)
     else:
       local_gpx = config.gpx_cache + "%s.gpx" % gpx
       if not os.path.exists (local_gpx):
           urllib.urlretrieve ("http://www.openstreetmap.org/trace/%s/data" % gpx, local_gpx)
       track = GPXParser(local_gpx)
-      req_bbox = track.bbox
+      req_bbox = projections.from4326(track.bbox, srs)
     width = 0
     height = 0
 
@@ -83,6 +83,7 @@ def handler(req):
     force = data.get("force","").split(",")
     filt = data.get ("filter","")
     if req_type == "GetTile":
+      srs = data.get("srs", data.get("SRS", "EPSG:3857"))
       x = int(data.get("x",data.get("X",0)))
       y = int(data.get("y",data.get("Y",0)))
       z = int(data.get("z",data.get("Z",1))) + 1
@@ -100,17 +101,19 @@ def handler(req):
              tile_file = open(local+add+ext, "r")
              req.write(tile_file.read())
              return apache.OK
-      req_bbox = "%s,%s,%s,%s" % tilenames.tileEdges(x,y,z-1)
+      req_bbox = projections.from4326(projections.bbox_by_tile(z,x,y,srs),srs)
 
 
     if data.get("bbox",data.get("BBOX",None)):
       req_bbox = tuple(map(float,data.get("bbox",data.get("BBOX",req_bbox)).split(",")))
+
     height = int(data.get("height",data.get("HEIGHT",height)))
     width = int(data.get("width",data.get("WIDTH",width)))
-    srs = data.get("srs", data.get("SRS", "EPSG:4326"))
     req_bbox = projections.to4326(req_bbox, srs)   
 
     req_bbox, flip_h, flip_v = bbox.normalize(req_bbox)
+    print >> sys.stderr, req_bbox
+    sys.stderr.flush()
 
     if (width > 4048) or (height > 4048):
       width = 1024

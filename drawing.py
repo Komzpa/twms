@@ -33,7 +33,7 @@ def wkt(wkt, img, bbox, srs):
        coords = coords.replace(")","")
        coords = coords.split(",")
        coords = [ [float(t) for t in x.split(" ")] for x in coords]
-       coords = [(x[1],x[0]) for x in coords]
+       #coords = [(x[1],x[0]) for x in coords]
        canvas = render_vector(name, canvas, bbox, coords, srs)
        img = Image.blend(img, canvas, 0.5)
     return img
@@ -61,11 +61,15 @@ def render_vector(geometry, img, bbox, coords, srs, color=config.geometry_color)
     Renders a vector geometry on image.
     """
     draw = ImageDraw.Draw(img)
-    lo1, la1, lo2, la2 = projections.from4326(bbox, srs)
+    bbox = projections.from4326(bbox, srs)
+    lo1, la1, lo2, la2 = bbox
     coords = projections.from4326(coords, srs)
+    print >> sys.stderr, coords, srs, bbox, "!!!!!!"
+    sys.stderr.flush()
     W,H = img.size
     prevcoord = False
-    coords = [(int((coord[1]-lo1)*(W-1)/abs(lo2-lo1)), int((la2-coord[0])*(H-1)/(la2-la1))) for coord in coords]
+    coords = [(int((coord[0]-lo1)*(W-1)/abs(lo2-lo1)), int((la2-coord[1])*(H-1)/(la2-la1))) for coord in coords]
+
     if geometry == "LINESTRING":
        draw.line (coords, fill=color, width=3)
 

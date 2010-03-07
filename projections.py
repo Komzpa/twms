@@ -46,7 +46,27 @@ def tile_by_bbox(bbox, zoom, srs):
     if b1 < a1:
       b1 += 2**(zoom-1)
     return a1,a2,b1,b2
-      
+
+def bbox_by_tile(z,x,y, srs):
+    """
+    Tile numbers of given zoom level to EPSG:4326 bbox of srs-projected tile
+    """
+    a1,a2 = coords_by_tile(z,x,y,srs)
+    b1,b2 = coords_by_tile(z,x+1,y+1,srs)
+    return a1,b2,b1,a2
+
+
+def coords_by_tile(z,x,y,srs):
+    """
+    Converts (z,x,y) to coordinates of corner of srs-projected tile
+    """
+    z -= 1
+    normalized_tile = (x/(2.**z), 1.-(y/(2.**z)))
+    projected_bounds = from4326(projs[proj_alias.get(srs,srs)]["bounds"], srs)
+    maxp = [projected_bounds[2]-projected_bounds[0],projected_bounds[3]-projected_bounds[1]]
+    projected_coords = [(normalized_tile[0]*maxp[0])+projected_bounds[0], (normalized_tile[1]*maxp[1])+projected_bounds[1]]
+    return to4326(projected_coords, srs)
+
 
 def tile_by_coords((lon,lat), zoom, srs):
     """

@@ -22,23 +22,27 @@ import math
 import sys
 import StringIO
 import Image
-import tilenames
+
 import config
+import projections
 
 
-def Wms4326as3857 (z, x, y, layer):
+def WMS (z, x, y, layer):
 
    this_layer = config.layers[layer]
    if "max_zoom" in this_layer:
     if z >= this_layer["max_zoom"]:
       return None   
-   wms = this_layer["wms_4326"]
+   wms = this_layer["remote_url"]
+   req_proj = this_layer.get("wms_proj", this_layer["proj"])
    width = 384   # using larger source size to rescale better in python
    height = 384
    local = config.tiles_cache + this_layer["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
-   tile_bbox = "bbox=%s,%s,%s,%s" % tilenames.tileEdges(x,y,z-1)
+   tile_bbox = "bbox=%s,%s,%s,%s" % tuple( projections.from4326(projections.bbox_by_tile(z,x,y,req_proj),req_proj))
 
-   wms += tile_bbox + "&width=%s&height=%s"%(width, height)
+   wms += tile_bbox + "&width=%s&height=%s&srs=%s"%(width, height, req_proj)
+   print >> sys.stderr, wms
+   sys.stderr.flush()
    if this_layer.get("cached", True):
     if not os.path.exists("/".join(local.split("/")[:-1])):
         os.makedirs("/".join(local.split("/")[:-1]))
@@ -73,8 +77,7 @@ def Tile (z, x, y, layer):
       return None
    if "transform_tile_number" in this_layer:
     d_tuple = this_layer["transform_tile_number"](z,x,y)
-   print >> sys.stderr, x, y, z
-   sys.stderr.flush()
+
    remote = this_layer["remote_url"] % d_tuple
    if this_layer.get("cached", True):
     local = config.tiles_cache + this_layer["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)

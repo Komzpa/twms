@@ -13,7 +13,6 @@
 
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
-import tilenames
 import fetchers
 
 
@@ -126,10 +125,13 @@ layers = {\
      "prefix": "gshtab",                   # tile directory
      "ext": "png",                      # tile images extension
      "scalable": False,                 # could zN tile be constructed of four z(N+1) tiles
-     "fetch": fetchers.Wms4326as3857, # function that fetches given tile. should return None if tile wasn't fetched
-     "wms_4326": "http://wms.latlon.org/cgi-bin/ms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=GS-100k-N-34,GS-100k-N-35,GS-100k-N-36&STYLES=&SRS=EPSG:4326&FORMAT=image/png&",
+     "fetch": fetchers.WMS, # function that fetches given tile. should return None if tile wasn't fetched
+     "remote_url": "http://wms.latlon.org/cgi-bin/ms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=GS-100k-N-34,GS-100k-N-35,GS-100k-N-36&STYLES=&FORMAT=image/png&", # string without srs, height, width and bbox
      "max_zoom": 16,
+     #"cached": False,
      "proj": "EPSG:3857",
+     "wms_proj": "EPSG:3857",  # what projection to ask from wms
+
 },\
 
 }
