@@ -33,18 +33,32 @@ def bbox_is_in(bbox_outer, bbox_to_check, fully = True):
    if fully:
       return (bo[0]<=bc[0] and bo[2]>=bc[2]) and (bo[1]<=bc[1] and bo[3]>=bc[3])
    else:
+      if bo[0] > bc[0]:
+        bo, bc = bc, bo
+      if bc[0] <= bo[2]:
+        if bo[1] > bc[1]:
+           bo, bc = bc, bo
+        return bc[1] <= bo[3]
+      return False
+
+
+
       return ((bo[0]<=bc[0] and bo[2]>=bc[0]) or (bo[0]<=bc[2] and bo[2]>=bc[2])) and ((bo[1]<=bc[1] and bo[3]>=bc[1]) or (bo[1]<=bc[3] and bo[3]>=bc[3])) or ((bc[0]<=bo[0] and bc[2]>=bo[0]) or (bc[0]<=bo[2] and bc[2]>=bo[2])) and ((bc[1]<=bo[1] and bc[3]>=bo[1]) or (bc[1]<=bo[3] and bc[3]>=bo[3]))
 
+def add(b1, b2):
+   """
+   Returns bbox that contains two bboxes.
+   """
+   return (min(b1[0],b2[0]),min(b1[1],b2[1]),max(b1[2],b2[2]),min(b1[3],b2[3]))
 
 def normalize (bbox):
    """
-   Normalizes EPSG:4326 bbox order. Returns normalized bbox, and whether it was flipped on both axes.
+   Normalizes EPSG:4326 bbox order. Returns normalized bbox, and whether it was flipped on horizontal axis.
    """
 
    flip_h = False
-   flip_v = False
    bbox = list(bbox)
-   while bbox[0] <= -180.:
+   while bbox[0] < -180.:
         bbox[0] += 360.
         bbox[2] += 360.
    if bbox[0] > bbox[2]:
@@ -56,4 +70,4 @@ def normalize (bbox):
    
    
 
-   return bbox, flip_h, flip_v
+   return bbox, flip_h

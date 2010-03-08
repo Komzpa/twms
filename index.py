@@ -95,7 +95,7 @@ def handler(req):
       y = int(data.get("y",data.get("Y",0)))
       z = int(data.get("z",data.get("Z",1))) + 1
       if data.get("layer",data.get("layers",data.get("LAYERS","osm"))) in config.layers:
-       if config.layers[layer]["proj"] is 1 and width is 256 and height is 256 and not filt and not force:
+       if config.layers[layer]["proj"] == srs and width is 256 and height is 256 and not filt and not force:
           local = config.tiles_cache + config.layers[layer]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
           ext = config.layers[layer]["ext"]
           adds = ["","ups."]
@@ -111,7 +111,7 @@ def handler(req):
 
     req_bbox = projections.to4326(req_bbox, srs)
 
-    req_bbox, flip_h, flip_v = bbox.normalize(req_bbox)
+    req_bbox, flip_h = bbox.normalize(req_bbox)
     print >> sys.stderr, req_bbox
     sys.stderr.flush()
 
@@ -126,25 +126,19 @@ def handler(req):
     layer = layer.split(",")
     
     imgs = 1.
-    result_img = getimg(req, req_bbox, (height, width), layer.pop(), force, start_time)
+    result_img = getimg(req_bbox, (height, width), layer.pop(), force, start_time)
     width, height =  result_img.size
     for ll in layer:
-     result_img = Image.blend(result_img, getimg(req, req_bbox, (height, width), ll, force, start_time), imgs/(imgs+1.))
+     result_img = Image.blend(result_img, getimg(req_bbox, (height, width), ll, force, start_time), imgs/(imgs+1.))
      imgs += 1.
 
 ##Applying filters
     for ff in filt.split(","):
      if ff.split(":") == [ff,]:
       if ff == "bw":
-       r,g,b = result_img.split()
-       g = g.filter(ImageFilter.CONTOUR)
-       result_img = Image.merge ("RGB", (r,g,b))
+       result_img = result_img.convert("L")
+       result_img = result_img.convert("RGB")
 
-       result_img = Image.eval(result_img, lambda x: int((x+512)/3))
-       outtbw = result_img.convert("L")
-
-       outtbw = outtbw.convert("RGB")
-       result_img = Image.blend(result_img, outtbw, 0.62)
       if ff == "contour":
         result_img = result_img.filter(ImageFilter.CONTOUR)
       if ff == "median":
@@ -177,11 +171,12 @@ def handler(req):
 
     if flip_h:
       result_img = ImageOps.flip(result_img)
-    if flip_v:
-      result_img = ImageOps.mirror(result_img)
-    
-    result_img.save(req, formats[format])
-
+    if formats[format] == "JPEG":
+       result_img.save(req, formats[format], quality=config.output_quality, progressive=config.output_progressive, optimize =config.output_optimize)
+    elif formats[format] == "PNG":
+       result_img.save(req, formats[format], progressive=config.output_progressive, optimize =config.output_optimize)
+    else:       ## workaround for GIF
+       result_img.save(req, formats[format], quality=config.output_quality, progressive=config.output_progressive)
 
     return apache.OK
 
@@ -217,6 +212,8 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
    """
    x = x % (2 ** (z-1))
    if y<0 or y >= (2 ** (z-1)):
+     return None
+   if not bbox.bbox_is_in(projections.bbox_by_tile(z,x,y,config.layers[layer]["proj"]), config.layers[layer].get("data_bounding_box",config.default_bbox), fully=False):
      return None
    if config.layers[layer].get("cached", True):
     local = config.tiles_cache + config.layers[layer]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
@@ -290,7 +287,7 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
             if im:
               return im
 
-def getimg (file, bbox, size, layer, force, start_time):
+def getimg (bbox, size, layer, force, start_time):
    
    H,W = size
    

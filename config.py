@@ -30,7 +30,9 @@ geometry_color = {                                           # default color for
 default_layers = "osm"                                       # layer(s) to show when no layers given explicitly
 max_height = 4095                                            # maximal image proportions
 max_width = 4095
-
+output_quality = 75                                          # output image quality (matters for JPEG)
+output_progressive = True                                    # should image be progressive? (matters for JPEG)
+output_optimize = False                                      # should image be optimized? (matters for PNG)
 
 ## stuff used for GetCapabilities
 service_url = "http://wms.play.latlon.org/"                  # URL service installed at
@@ -94,7 +96,7 @@ layers = {\
      "remote_url": "http://d.tile.latlon.org/tiles/%s/%s/%s.png",
      "transform_tile_number": lambda z,x,y: (z-1,x,y),
      "proj": "EPSG:3857",
-     "data_bounding_box": (26.925911391627,53.565742941102,28.393959487271,54.27899858574),
+     "data_bounding_box": (23.16722,51.25930,32.82244,56.18162),
 },\
 
 "irs":  { \
@@ -138,7 +140,7 @@ layers = {\
      #"cached": False,
      "proj": "EPSG:3857",
      "wms_proj": "EPSG:3857",  # what projection to ask from wms
-
+     "data_bounding_box": (23.16722,51.25930,32.82244,56.18162),
 },\
 
 }
