@@ -56,16 +56,17 @@ def gpx(track, img, bbox, srs):
     return img
 
 
-def render_vector(geometry, img, bbox, coords, srs, color=config.geometry_color):
+def render_vector(geometry, img, bbox, coords, srs, color=None):
     """
     Renders a vector geometry on image.
     """
+    if not color:
+      color = config.geometry_color[geometry]
     draw = ImageDraw.Draw(img)
     bbox = projections.from4326(bbox, srs)
     lo1, la1, lo2, la2 = bbox
+    
     coords = projections.from4326(coords, srs)
-    print >> sys.stderr, coords, srs, bbox, "!!!!!!"
-    sys.stderr.flush()
     W,H = img.size
     prevcoord = False
     coords = [(int((coord[0]-lo1)*(W-1)/abs(lo2-lo1)), int((la2-coord[1])*(H-1)/(la2-la1))) for coord in coords]

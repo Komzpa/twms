@@ -107,13 +107,13 @@ def transform (line, srs1, srs2):
     """
     line = list(line)
     serial = False
-    if type(line[0]) is not tuple:
+    if (type(line[0]) is not tuple) and (type(line[0]) is not list):
       serial = True
       l1 = []
       while line:
          a = line.pop(0)
          b = line.pop(0)
-         l1.append((a,b))
+         l1.append([a,b])
       line = l1
     ans = []
     for point in line:

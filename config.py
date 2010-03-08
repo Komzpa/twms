@@ -22,8 +22,15 @@ install_path = "/var/www/latlon/wms/"                        # where to look for
 gpx_cache = "/var/www/latlon/wms/traces/"                    # where to store cached OSM GPX files
 deadline = 45                                                # number of seconds that are given to make up image
 default_max_zoom = 18                                        # can be overridden per layer
-geometry_color = "#ff0000"                                   # default color for overlayed vectors
+geometry_color = {                                           # default color for overlayed vectors
+        "LINESTRING": "#ff0000",
+        "POLYGON": "#0000ff",
+        "POINT": "#00ff00",
+}
 default_layers = "osm"                                       # layer(s) to show when no layers given explicitly
+max_height = 4095                                            # maximal image proportions
+max_width = 4095
+
 
 ## stuff used for GetCapabilities
 service_url = "http://wms.play.latlon.org/"                  # URL service installed at

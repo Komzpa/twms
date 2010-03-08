@@ -58,8 +58,7 @@ def handler(req):
           urllib.urlretrieve ("http://www.openstreetmap.org/trace/%s/data" % gpx, local_gpx)
       track = GPXParser(local_gpx)
       req_bbox = projections.from4326(track.bbox, srs)
-    width = 0
-    height = 0
+ 
 
     
 
@@ -82,15 +81,19 @@ def handler(req):
 
     force = data.get("force","").split(",")
     filt = data.get ("filter","")
+
+
+    width=0
+    height=0
     if req_type == "GetTile":
-      srs = data.get("srs", data.get("SRS", "EPSG:3857"))
-      x = int(data.get("x",data.get("X",0)))
-      y = int(data.get("y",data.get("Y",0)))
-      z = int(data.get("z",data.get("Z",1))) + 1
       width=256
       height=256
       height = int(data.get("height",data.get("HEIGHT",height)))
       width = int(data.get("width",data.get("WIDTH",width)))
+      srs = data.get("srs", data.get("SRS", "EPSG:3857"))
+      x = int(data.get("x",data.get("X",0)))
+      y = int(data.get("y",data.get("Y",0)))
+      z = int(data.get("z",data.get("Z",1))) + 1
       if data.get("layer",data.get("layers",data.get("LAYERS","osm"))) in config.layers:
        if config.layers[layer]["proj"] is 1 and width is 256 and height is 256 and not filt and not force:
           local = config.tiles_cache + config.layers[layer]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
@@ -103,21 +106,19 @@ def handler(req):
              return apache.OK
       req_bbox = projections.from4326(projections.bbox_by_tile(z,x,y,srs),srs)
 
-
     if data.get("bbox",data.get("BBOX",None)):
       req_bbox = tuple(map(float,data.get("bbox",data.get("BBOX",req_bbox)).split(",")))
 
-    height = int(data.get("height",data.get("HEIGHT",height)))
-    width = int(data.get("width",data.get("WIDTH",width)))
-    req_bbox = projections.to4326(req_bbox, srs)   
+    req_bbox = projections.to4326(req_bbox, srs)
 
     req_bbox, flip_h, flip_v = bbox.normalize(req_bbox)
     print >> sys.stderr, req_bbox
     sys.stderr.flush()
 
-    if (width > 4048) or (height > 4048):
-      width = 1024
-      height = 0
+    height = int(data.get("height",data.get("HEIGHT",height)))
+    width = int(data.get("width",data.get("WIDTH",width)))
+    width = min(width, config.max_width)
+    height = min(height, config.max_height)
     if (width == 0) and (height == 0):
       width = 350
     
@@ -191,13 +192,18 @@ def getbestzoom (bbox, size, layer):
    Calculate a best-fit zoom level
    """
    max_zoom = config.layers[layer].get("max_zoom",config.default_max_zoom)
+   h,w = size
    for i in range (1,max_zoom):
      cx1, cy1, cx2, cy2 =  projections.tile_by_bbox (bbox, i, config.layers[layer]["proj"])
-     if size[1] is not 0:
-      if (cx2-cx1)*256 >= size[1] :
+     if w is not 0:
+      if (cx2-cx1)*256 >= w :
        return i
-     if size[0] is not 0:
-      if (cy1-cy2)*256 >= size[0]:
+     if h is not 0:
+      if (cy1-cy2)*256 >= h:
+       return i
+     if (cy1-cy2)*256 >= config.max_height/2:
+       return i
+     if (cx2-cx1)*256 >= config.max_width/2:
        return i
 
    return max_zoom
