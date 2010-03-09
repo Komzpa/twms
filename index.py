@@ -14,21 +14,21 @@
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
-from PIL import Image, ImageFilter, ImageOps
+from PIL import Image, ImageOps, ImageColor
 import os
 import math
 import sys
 import urllib
-import ImageEnhance
 import StringIO
-import re
 import time
+
 
 import capabilities
 import config
 import bbox
 import projections
 import drawing
+import filter
 from gpxparse import GPXParser
 
 if __name__ != '__main__':
@@ -80,7 +80,7 @@ def handler(req):
 
 
     force = data.get("force","").split(",")
-    filt = data.get ("filter","")
+    filt = data.get ("filter","").split(",")
 
 
     width=0
@@ -126,42 +126,44 @@ def handler(req):
     layer = layer.split(",")
     
     imgs = 1.
-    result_img = getimg(req_bbox, (height, width), layer.pop(), force, start_time)
-    width, height =  result_img.size
+    result_img = getimg(req_bbox, (height, width), layer.pop(0), start_time)
+
+    if "noresize" not in force:
+      if (height == width) and (height == 0):
+        width, height = result_img.size
+      if height == 0:
+        height = result_img.size[1]*width/result_img.size[0]
+      if width == 0:
+        width = result_img.size[0]*height/result_img.size[1]
+      result_img = result_img.resize((width,height), Image.ANTIALIAS)
+    #width, height =  result_img.size
     for ll in layer:
-     result_img = Image.blend(result_img, getimg(req_bbox, (height, width), ll, force, start_time), imgs/(imgs+1.))
+     im2 = getimg(req_bbox, (height, width), ll,  start_time)
+
+     if "empty_color" in config.layers[ll]:
+      ec = ImageColor.getcolor(config.layers[ll]["empty_color"], "RGBA")
+
+      i2l = im2.load()
+      for x in range(0,im2.size[0]):
+        for y in range(0,im2.size[1]):
+          t = i2l[x,y]
+          #print >> sys.stderr, ec, t, ec == t
+          #sys.stderr.flush()
+     
+          if ec == t:
+            i2l[x,y] = (t[0],t[1],t[2],0)
+     if not im2.size == result_img.size:
+         im2 = im2.resize(result_img.size, Image.ANTIALIAS)
+     im2 = Image.composite(im2,result_img, im2.split()[3]) # imgs/(imgs+1.))
+
+     if "noblend" in force:
+      result_img = im2
+     else:
+      result_img = Image.blend(im2, result_img, 0.5)
      imgs += 1.
 
-##Applying filters
-    for ff in filt.split(","):
-     if ff.split(":") == [ff,]:
-      if ff == "bw":
-       result_img = result_img.convert("L")
-       result_img = result_img.convert("RGB")
-
-      if ff == "contour":
-        result_img = result_img.filter(ImageFilter.CONTOUR)
-      if ff == "median":
-        result_img = result_img.filter(ImageFilter.MedianFilter(5))
-      if ff == "blur":
-        result_img = result_img.filter(ImageFilter.BLUR)
-      if ff == "edge":
-        result_img = result_img.filter(ImageFilter.EDGE_ENHANCE)
-     else:
-      ff, tt = ff.split(":")
-      tt = float(tt)
-      if ff == "brightness":
-        enhancer = ImageEnhance.Brightness(result_img)
-        result_img = enhancer.enhance(tt)
-      if ff == "contrast":
-        enhancer = ImageEnhance.Contrast(result_img)
-        result_img = enhancer.enhance(tt)
-      if ff == "sharpness":
-        enhancer = ImageEnhance.Sharpness(result_img)
-        result_img = enhancer.enhance(tt)
-
-
-
+    ##Applying filters
+    result_img = filter.raster(result_img, filt)
     wkt = data.get("wkt",data.get("WKT",None))
     
     if wkt: 
@@ -172,7 +174,10 @@ def handler(req):
     if flip_h:
       result_img = ImageOps.flip(result_img)
     if formats[format] == "JPEG":
-       result_img.save(req, formats[format], quality=config.output_quality, progressive=config.output_progressive, optimize =config.output_optimize)
+       try:
+        result_img.save(req, formats[format], quality=config.output_quality, progressive=config.output_progressive)
+       except IOError:
+        result_img.save(req, formats[format], quality=config.output_quality)
     elif formats[format] == "PNG":
        result_img.save(req, formats[format], progressive=config.output_progressive, optimize =config.output_optimize)
     else:       ## workaround for GIF
@@ -245,7 +250,9 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
           if os.path.exists(local+"ups."+ext):
               im = Image.open(local+"ups."+ext)
               return im
-          im = Image.new("RGBA", (512, 512), (0,0,0,0))
+          ec = ImageColor.getcolor(config.layers[layer].get("empty_color", config.default_background), "RGBA")
+          ec = (ec[0],ec[1],ec[2],0)
+          im = Image.new("RGBA", (512, 512), ec)
           im1 = tile_image(layer, z+1,x*2,y*2, start_time)
           if im1:
            im2 = tile_image(layer, z+1,x*2+1,y*2, start_time)
@@ -287,7 +294,7 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
             if im:
               return im
 
-def getimg (bbox, size, layer, force, start_time):
+def getimg (bbox, size, layer, start_time):
    
    H,W = size
    
@@ -312,19 +319,11 @@ def getimg (bbox, size, layer, force, start_time):
      got_image = False
      im1 = tile_image (layer,zoom,x,y, start_time, real = True)
      if not im1:
-        im1 = Image.new("RGBA", (256, 256), (0,0,0,0))
+          ec = ImageColor.getcolor(config.layers[layer].get("empty_color", config.default_background), "RGBA")
+          #ec = (ec[0],ec[1],ec[2],0)
+          im1 = Image.new("RGBA", (256, 256), ec)
 
 
      out.paste(im1,((x - from_tile_x)*256, (-to_tile_y + y )*256,))
    out = out.crop(bbox)
-   if (H == W) and (H == 0):
-     W, H = out.size
-   if H == 0:
-     H = out.size[1]*W/out.size[0]
-   if W == 0:
-     W = out.size[0]*H/out.size[1]
-   
-   if "noresize" not in force:
-    out = out.resize((W,H), Image.ANTIALIAS)
-
    return out

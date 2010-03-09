@@ -33,6 +33,7 @@ max_width = 4095
 output_quality = 75                                          # output image quality (matters for JPEG)
 output_progressive = True                                    # should image be progressive? (matters for JPEG)
 output_optimize = False                                      # should image be optimized? (matters for PNG)
+default_background = "#ffffff"                               # default background for empty space
 
 ## stuff used for GetCapabilities
 service_url = "http://wms.play.latlon.org/"                  # URL service installed at
@@ -86,6 +87,7 @@ layers = {\
      "remote_url": "http://c.tile.openstreetmap.org/%s/%s/%s.png",
      "transform_tile_number": lambda z,x,y: (z-1,x,y),
      "proj": "EPSG:3857",
+     "empty_color": "#F1EEE8",
      "cache_ttl": 864000,
 },\
 "osm-be": { \
@@ -96,6 +98,7 @@ layers = {\
      "remote_url": "http://d.tile.latlon.org/tiles/%s/%s/%s.png",
      "transform_tile_number": lambda z,x,y: (z-1,x,y),
      "proj": "EPSG:3857",
+     "empty_color": "#F1EEE8",
      "data_bounding_box": (23.16722,51.25930,32.82244,56.18162),
 },\
 
@@ -109,6 +112,7 @@ layers = {\
      "transform_tile_number": lambda z,x,y: (z-1,int(-((int(2**(z-1)))/ 2)+x),int(-((int(2**(z-1)))/ 2)+ int(2**(z-1)-(y+1)))),
      "dead_tile": install_path + "irs_nxt.jpg",
      "max_zoom": 16,
+     "empty_color": "#000000",
      "proj": "EPSG:3395",
 },\
 "SAT":  { \
@@ -138,6 +142,7 @@ layers = {\
      "remote_url": "http://wms.latlon.org/cgi-bin/ms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=GS-100k-N-34,GS-100k-N-35,GS-100k-N-36&STYLES=&FORMAT=image/png&", # string without srs, height, width and bbox
      "max_zoom": 16,
      #"cached": False,
+     "empty_color": "#FFFFFF",
      "proj": "EPSG:3857",
      "wms_proj": "EPSG:3857",  # what projection to ask from wms
      "data_bounding_box": (23.16722,51.25930,32.82244,56.18162),
