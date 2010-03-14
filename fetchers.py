@@ -27,9 +27,9 @@ import config
 import projections
 
 
-def WMS (z, x, y, layer):
+def WMS (z, x, y, this_layer):
 
-   this_layer = config.layers[layer]
+   
    if "max_zoom" in this_layer:
     if z >= this_layer["max_zoom"]:
       return None   
@@ -56,7 +56,7 @@ def WMS (z, x, y, layer):
    im = im.convert("RGBA")
    
    if this_layer.get("cached", True):
-    ic = Image.new("RGBA", (256, 256), "white")
+    ic = Image.new("RGBA", (256, 256), this_layer.get("empty_color", config.default_background)  )
     if im.histogram() == ic.histogram():
        tne = open (local+"tne", "wb")
        when = time.localtime()
@@ -68,10 +68,10 @@ def WMS (z, x, y, layer):
     os.rmdir(local+"lock")
    return im
    
-def Tile (z, x, y, layer):
+def Tile (z, x, y, this_layer):
 
    d_tuple = z,x,y
-   this_layer = config.layers[layer]
+   
    if "max_zoom" in this_layer:
     if z >= this_layer["max_zoom"]:
       return None

@@ -23,13 +23,16 @@ import StringIO
 import time
 
 
+import correctify
 import capabilities
 import config
 import bbox
 import projections
 import drawing
 import filter
+import overview
 from gpxparse import GPXParser
+from reproject import reproject
 
 if __name__ != '__main__':
  try: 
@@ -72,16 +75,21 @@ def handler(req):
      return apache.OK
 
     layer = data.get("layers",data.get("LAYERS", config.default_layers))
+
+
+
+    force = data.get("force","").split(",")
+    filt = data.get ("filter","").split(",")
+    if layer == "":
+      req.content_type = "text/html"
+      req.write(overview.html())
+      return apache.OK
+
     format = data.get("format", data.get("FORMAT", config.default_format))
     if format not in formats:
      req.write("Invalid Format")
      return 500
     req.content_type = format
-
-
-    force = data.get("force","").split(",")
-    filt = data.get ("filter","").split(",")
-
 
     width=0
     height=0
@@ -112,8 +120,9 @@ def handler(req):
     req_bbox = projections.to4326(req_bbox, srs)
 
     req_bbox, flip_h = bbox.normalize(req_bbox)
-    print >> sys.stderr, req_bbox
-    sys.stderr.flush()
+    box = req_bbox
+    #print >> sys.stderr, req_bbox
+    #sys.stderr.flush()
 
     height = int(data.get("height",data.get("HEIGHT",height)))
     width = int(data.get("width",data.get("WIDTH",width)))
@@ -126,7 +135,11 @@ def handler(req):
     layer = layer.split(",")
     
     imgs = 1.
-    result_img = getimg(req_bbox, (height, width), layer.pop(0), start_time)
+    ll = layer.pop(0)
+    if "nocorrect" not in force:
+      box = correctify.r_bbox(ll, req_bbox, srs)
+      
+    result_img = getimg(box, (height, width), config.layers[ll], start_time)
 
     if "noresize" not in force:
       if (height == width) and (height == 0):
@@ -138,7 +151,9 @@ def handler(req):
       result_img = result_img.resize((width,height), Image.ANTIALIAS)
     #width, height =  result_img.size
     for ll in layer:
-     im2 = getimg(req_bbox, (height, width), ll,  start_time)
+     if "nocorrect" not in force:
+        box = correctify.r_bbox(ll, req_bbox, srs)
+     im2 = getimg(req_bbox, (height, width), config.layers[ll],  start_time)
 
      if "empty_color" in config.layers[ll]:
       ec = ImageColor.getcolor(config.layers[ll]["empty_color"], "RGBA")
@@ -191,10 +206,11 @@ def getbestzoom (bbox, size, layer):
    """
    Calculate a best-fit zoom level
    """
-   max_zoom = config.layers[layer].get("max_zoom",config.default_max_zoom)
+   max_zoom = layer.get("max_zoom",config.default_max_zoom)
+   min_zoom = layer.get("min_zoom",1)
    h,w = size
-   for i in range (1,max_zoom):
-     cx1, cy1, cx2, cy2 =  projections.tile_by_bbox (bbox, i, config.layers[layer]["proj"])
+   for i in range (min_zoom,max_zoom):
+     cx1, cy1, cx2, cy2 =  projections.tile_by_bbox (bbox, i, layer["proj"])
      if w is not 0:
       if (cx2-cx1)*256 >= w :
        return i
@@ -218,16 +234,16 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
    x = x % (2 ** (z-1))
    if y<0 or y >= (2 ** (z-1)):
      return None
-   if not bbox.bbox_is_in(projections.bbox_by_tile(z,x,y,config.layers[layer]["proj"]), config.layers[layer].get("data_bounding_box",config.default_bbox), fully=False):
+   if not bbox.bbox_is_in(projections.bbox_by_tile(z,x,y,layer["proj"]), layer.get("data_bounding_box",config.default_bbox), fully=False):
      return None
-   if config.layers[layer].get("cached", True):
-    local = config.tiles_cache + config.layers[layer]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
-    ext = config.layers[layer]["ext"]
-    if "cache_ttl" in config.layers[layer]:
+   if layer.get("cached", True):
+    local = config.tiles_cache + layer["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
+    ext = layer["ext"]
+    if "cache_ttl" in layer:
       for ex in [ext, "dsc."+ext, "ups."+ext, "tne"]:
        f = local+ex
        if os.path.exists(f):
-         if (os.stat(f).st_mtime < (time.time()-config.layers[layer]["cache_ttl"])):
+         if (os.stat(f).st_mtime < (time.time()-layer["cache_ttl"])):
            os.remove(f)
 
     gpt_image = False
@@ -246,11 +262,11 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
             os.remove(local+ext)				# # Cached tile is broken - remove it
 
 
-      if config.layers[layer]["scalable"] and (z<18) and trybetter:      # Second, try to glue image of better ones
+      if layer["scalable"] and (z<layer.get("max_zoom", config.default_max_zoom)) and trybetter:      # Second, try to glue image of better ones
           if os.path.exists(local+"ups."+ext):
               im = Image.open(local+"ups."+ext)
               return im
-          ec = ImageColor.getcolor(config.layers[layer].get("empty_color", config.default_background), "RGBA")
+          ec = ImageColor.getcolor(layer.get("empty_color", config.default_background), "RGBA")
           ec = (ec[0],ec[1],ec[2],0)
           im = Image.new("RGBA", (512, 512), ec)
           im1 = tile_image(layer, z+1,x*2,y*2, start_time)
@@ -266,16 +282,17 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
                 im.paste(im3,(0,256))
                 im.paste(im4,(256,256))
                 im = im.resize((256,256),Image.ANTIALIAS)
-                im.save(local+"ups."+ext)
+                if layer.get("cached", True):
+                  im.save(local+"ups."+ext)
                 return im
       if not again:
 
-        if "fetch" in config.layers[layer]:
+        if "fetch" in layer:
           delta = (datetime.datetime.now() - start_time)
           delta = delta.seconds + delta.microseconds/1000000.
           if (config.deadline > delta) or (z < 4):
 
-            im = config.layers[layer]["fetch"](z,x,y,layer)    # Try fetching from outside
+            im = layer["fetch"](z,x,y,layer)    # Try fetching from outside
             if im:
               return im
     if real and (z>1):
@@ -285,12 +302,12 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
             im = im.resize((256,256), Image.BILINEAR)
             return im
    else:
-      if "fetch" in config.layers[layer]:
+      if "fetch" in layer:
           delta = (datetime.datetime.now() - start_time)
           delta = delta.seconds + delta.microseconds/1000000.
           if (config.deadline > delta) or (z < 4):
 
-            im = config.layers[layer]["fetch"](z,x,y,layer)    # Try fetching from outside
+            im = layer["fetch"](z,x,y,layer)    # Try fetching from outside
             if im:
               return im
 
@@ -300,7 +317,7 @@ def getimg (bbox, size, layer, start_time):
    
    zoom = getbestzoom (bbox,size,layer)
    lo1, la1, lo2, la2 = bbox
-   from_tile_x, from_tile_y, to_tile_x, to_tile_y = projections.tile_by_bbox(bbox, zoom, config.layers[layer]["proj"])
+   from_tile_x, from_tile_y, to_tile_x, to_tile_y = projections.tile_by_bbox(bbox, zoom, layer["proj"])
    cut_from_x = int(256*(from_tile_x - int(from_tile_x)))
    cut_from_y = int(256*(from_tile_y - int(from_tile_y)))
    cut_to_x = int(256*(to_tile_x - int(to_tile_x)))
@@ -308,22 +325,23 @@ def getimg (bbox, size, layer, start_time):
     
    from_tile_x, from_tile_y = int(from_tile_x), int(from_tile_y)
    to_tile_x, to_tile_y = int(to_tile_x), int(to_tile_y)
-   bbox = (cut_from_x, cut_to_y, 256*(to_tile_x-from_tile_x)+cut_to_x, 256*(from_tile_y-to_tile_y)+cut_from_y )
+   bbox_im = (cut_from_x, cut_to_y, 256*(to_tile_x-from_tile_x)+cut_to_x, 256*(from_tile_y-to_tile_y)+cut_from_y )
    x = 256*(to_tile_x-from_tile_x+1)
    y = 256*(from_tile_y-to_tile_y+1)
-   print >> sys.stderr, x, y
-   sys.stderr.flush()
+   #print >> sys.stderr, x, y
+   #sys.stderr.flush()
    out = Image.new("RGBA", (x, y))
    for x in range (from_tile_x, to_tile_x+1):
     for y in range (to_tile_y, from_tile_y+1):
      got_image = False
      im1 = tile_image (layer,zoom,x,y, start_time, real = True)
      if not im1:
-          ec = ImageColor.getcolor(config.layers[layer].get("empty_color", config.default_background), "RGBA")
+          ec = ImageColor.getcolor(layer.get("empty_color", config.default_background), "RGBA")
           #ec = (ec[0],ec[1],ec[2],0)
           im1 = Image.new("RGBA", (256, 256), ec)
 
 
      out.paste(im1,((x - from_tile_x)*256, (-to_tile_y + y )*256,))
-   out = out.crop(bbox)
+   out = out.crop(bbox_im)
+   #out = reproject(out, bbox, layer["proj"], "EPSG:4326")
    return out

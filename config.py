@@ -27,7 +27,7 @@ geometry_color = {                                           # default color for
         "POLYGON": "#0000ff",
         "POINT": "#00ff00",
 }
-default_layers = "osm"                                       # layer(s) to show when no layers given explicitly
+default_layers = ""                                          # layer(s) to show when no layers given explicitly. if False, overview is shown.
 max_height = 4095                                            # maximal image proportions
 max_width = 4095
 output_quality = 75                                          # output image quality (matters for JPEG)
@@ -64,6 +64,7 @@ layers = {\
      "remote_url": "http://aerial.maps.yimg.com/ximg?v=1.8&t=a&s=256&r=1&x=%s&y=%s&z=%s",
      "transform_tile_number": lambda z,x,y: (x,((2**(z-1)/2)-1)-y,z),
      "dead_tile": install_path + "yahoo_nxt.jpg",
+     "min_zoom": 2,
      "max_zoom": 18,
      "proj": "EPSG:3857",
 },\
@@ -91,7 +92,7 @@ layers = {\
      "cache_ttl": 864000,
 },\
 "osm-be": { \
-     "name": "OpenStreetMap mapnik",
+     "name": "OpenStreetMap mapnik - Belarus",
      "cached": False,
      "scalable": False,                 # could zN tile be constructed of four z(N+1) tiles
      "fetch": fetchers.Tile,    # function that fetches given tile. should return None if tile wasn't fetched
@@ -111,9 +112,11 @@ layers = {\
      "remote_url": "http://maps.kosmosnimki.ru/TileSender.ashx?ModeKey=tile&MapName=F7B8CF651682420FA1749D894C8AD0F6&LayerName=950FA578D6DB40ADBDFC6EEBBA469F4A&z=%s&x=%s&y=%s",
      "transform_tile_number": lambda z,x,y: (z-1,int(-((int(2**(z-1)))/ 2)+x),int(-((int(2**(z-1)))/ 2)+ int(2**(z-1)-(y+1)))),
      "dead_tile": install_path + "irs_nxt.jpg",
+     "min_zoom": 3,
      "max_zoom": 16,
      "empty_color": "#000000",
      "proj": "EPSG:3395",
+     "data_bounding_box": (26.0156238531320340,40.7707274153093520,69.257808718487752,67.610652011923932),
 },\
 "SAT":  { \
      "name": "Google Satellite Partial",
@@ -122,6 +125,8 @@ layers = {\
      "scalable": True,                 # could zN tile be constructed of four z(N+1) tiles
      "max_zoom": 19,
      "proj": "EPSG:3857",
+      "remote_url": "http://khm1.google.com/kh/v=57&x=%s&y=%s&z=%s&s=%s",
+      "transform_tile_number": lambda z,x,y: ( x, y, z-1, "Galileo"[ 0 : ((x*3+y)%8) ] ),
 },\
 "navitel":  { \
      "name": "Navitel Navigator Maps",
@@ -131,6 +136,7 @@ layers = {\
      "fetch": fetchers.Tile, # function that fetches given tile. should return None if tile wasn't fetched
      "remote_url": "http://map.navitel.su/navitms.fcgi?t=%08i,%08i,%02i",
      "transform_tile_number": lambda z,x,y: (x, 2**(z-1)-y-1, z-1),
+     "min_zoom": 6,
      "proj": "EPSG:3857",
 },\
 "gshtab":  { \
