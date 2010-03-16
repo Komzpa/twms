@@ -22,8 +22,9 @@ import config
 
 distance = lambda z,x,y,g: ((z-y)**2+(x-g)**2)**(0.5)
 
-def rectify(layer, point, srs):
-    corrfile = config.tiles_cache + config.layers[layer].get("prefix", "")+ "/rectify.txt"
+def rectify(layer, point):
+    corrfile = config.tiles_cache + layer.get("prefix", "")+ "/rectify.txt"
+    srs = layer["proj"]
     if not os.path.exists(corrfile):
        return point
     corr = open(corrfile, "r")
@@ -32,7 +33,7 @@ def rectify(layer, point, srs):
     #print >> sys.stderr, pickle.dumps(coefs[layer])
 #    sys.stderr.flush()
     lonaz, loniz, lataz, latiz = lona, loni, lata, lati
-    maxdist = (0.5)
+    maxdist = (18.0)
     for line in corr:
        d,c,b,a,user,ts = line.split()
        d,c,b,a = (float(d),float(c),float(b),float(a))
@@ -74,15 +75,16 @@ def rectify(layer, point, srs):
     return projections.to4326((lonn,latn), srs)
        
 #print rectify("yasat", (27.679068, 53.885122), "")
-def r_bbox(layer, bbox, srs):
-    corrfile = config.tiles_cache + config.layers[layer].get("prefix", "")+ "/rectify.txt"
+def r_bbox(layer, bbox):
+    corrfile = config.tiles_cache + layer.get("prefix", "")+ "/rectify.txt"
+    srs = layer["proj"]
     if not os.path.exists(corrfile):
        return bbox
     a,b,c,d = projections.from4326(bbox,srs)
     cx, cy = (a+c)/2, (b+d)/2
-    cx1,cy1 = projections.from4326(rectify(layer,projections.to4326((cx,cy), srs),srs),srs)
-    a1,b1 = projections.from4326(rectify(layer,projections.to4326((a,b), srs),srs),srs)
-    c1,d1 = projections.from4326(rectify(layer,projections.to4326((c,d), srs),srs),srs)
+    cx1,cy1 = projections.from4326(rectify(layer,projections.to4326((cx,cy), srs)),srs)
+    a1,b1 = projections.from4326(rectify(layer,projections.to4326((a,b), srs)),srs)
+    c1,d1 = projections.from4326(rectify(layer,projections.to4326((c,d), srs)),srs)
     
     dx,dy = ((cx1-cx)+(a1-a)+(c1-c))/3, ((cy1-cy)+(b1-b)+(d1-d))/3
 #    print >> sys.stderr, dx,dy

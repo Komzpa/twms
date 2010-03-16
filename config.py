@@ -136,8 +136,9 @@ layers = {\
      "fetch": fetchers.Tile, # function that fetches given tile. should return None if tile wasn't fetched
      "remote_url": "http://map.navitel.su/navitms.fcgi?t=%08i,%08i,%02i",
      "transform_tile_number": lambda z,x,y: (x, 2**(z-1)-y-1, z-1),
-     "min_zoom": 6,
+     "min_zoom": 7,
      "proj": "EPSG:3857",
+     "data_bounding_box": (17.999999997494381, 39.999999995338634, 172.99999997592218, 77.999999996263981),
 },\
 "gshtab":  { \
      "name": "Genshtab 100k maps of Belarus",
