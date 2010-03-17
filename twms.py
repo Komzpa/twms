@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 #    This file is part of tWMS.
 
@@ -41,10 +42,6 @@ try:
 except ImportError:
         pass
 
-try:
-        import web
-except ImportError:
-        pass
 
        
 
@@ -390,6 +387,24 @@ def getimg (bbox, size, layer, start_time):
 
 
 if __name__ == "__main__":
+    try:
+     if sys.argv[1] == "josm":
+      import cgi
+      url, params = sys.argv[2].split("/?", 1)
+      data = cgi.parse_qs(params)
+      for t in data.keys():
+        data[t] = data[t][0]
+      resp, ctype, content = twms_main(data)
+      print content
+      exit()
+    except IndexError:
+      pass
+    try:
+          import web
+    except ImportError:
+          pass
+
+
     urls = (
         '/(.*)', 'mainhandler'
     )
