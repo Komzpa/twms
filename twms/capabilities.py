@@ -20,7 +20,7 @@
 import config
 import projections
 
-def get(version):
+def get(version, ref):
    content_type = "text/xml"
    
    if version == "1.0.0":
@@ -52,7 +52,7 @@ def get(version):
                 <Abstract>None</Abstract>
                 <Keywords></Keywords>
                 <!-- Top-level address of service or service provider.  See also onlineResource attributes of <DCPType> children. -->
-                <OnlineResource>"""+ config.service_url +"""</OnlineResource>
+                <OnlineResource>"""+ ref +"""</OnlineResource>
                 <!-- Fees or access constraints imposed. -->
                 <Fees>none</Fees>
                 <AccessConstraints>none</AccessConstraints>
@@ -71,7 +71,7 @@ def get(version):
                                 <DCPType>
                                         <HTTP>
                                                 <!-- The URL here for HTTP GET requests includes only the prefix before the query string.-->
-                                                <Get onlineResource=\"""" + config.service_url + """?"/>
+                                                <Get onlineResource=\"""" + ref + """?"/>
                                         </HTTP>
                                 </DCPType>
                         </Map>
@@ -83,7 +83,7 @@ def get(version):
                                 <DCPType>
                                         <HTTP>
                                                 <!-- The URL here for HTTP GET requests includes only the prefix before the query string.-->
-                                                <Get onlineResource=\"""" + config.service_url + """?"/>
+                                                <Get onlineResource=\"""" + ref + """?"/>
                                         </HTTP>
                                 </DCPType>
 
@@ -146,7 +146,7 @@ def get(version):
                 <Abstract>None</Abstract>
                 <!-- Top-level web address of service or service provider.  See also OnlineResource
   elements under <DCPType>. -->
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\"""" + config.service_url+ """"/>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\"""" + ref+ """"/>
                 <!-- Contact information -->
                 <ContactInformation>
                         <ContactPersonPrimary>
@@ -168,7 +168,7 @@ def get(version):
                                                 <Get>
                                                         <!-- The URL here for invoking GetCapabilities using HTTP GET
             is only a prefix to which a query string is appended. -->
-                                                        <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\"""" + config.service_url + """?"/>
+                                                        <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\"""" + ref + """?"/>
                                                 </Get>
                                         </HTTP>
                                 </DCPType>
@@ -183,7 +183,7 @@ def get(version):
                                                 <Get>
                                                         <!-- The URL here for invoking GetCapabilities using HTTP GET
             is only a prefix to which a query string is appended. -->
-                                                        <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\"""" + config.service_url + """?"/>
+                                                        <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\"""" + ref + """?"/>
                                                 </Get>
                                         </HTTP>
                                 </DCPType>

@@ -17,10 +17,12 @@ import fetchers
 
 
 debug = True
+max_ram_cached_tiles = 256
+
 tiles_cache = "/var/www/latlon/wms/cache/"                   # where to put cache
 install_path = "/var/www/latlon/wms/"                        # where to look for broken tiles and other stuff
 gpx_cache = "/var/www/latlon/wms/traces/"                    # where to store cached OSM GPX files
-deadline = 45                                                # number of seconds that are given to make up image
+deadline = 4500                                                # number of seconds that are given to make up image
 default_max_zoom = 18                                        # can be overridden per layer
 geometry_color = {                                           # default color for overlayed vectors
         "LINESTRING": "#ff0000",
@@ -96,10 +98,10 @@ layers = {\
      "cached": False,
      "scalable": False,                 # could zN tile be constructed of four z(N+1) tiles
      "fetch": fetchers.Tile,    # function that fetches given tile. should return None if tile wasn't fetched
-     "remote_url": "http://d.tile.latlon.org/tiles/%s/%s/%s.png",
+     "remote_url": "http://tile.latlon.org/tiles/%s/%s/%s.png",
      "transform_tile_number": lambda z,x,y: (z-1,x,y),
      "proj": "EPSG:3857",
-     "empty_color": "#F1EEE8",
+     "empty_color": "#f2efe9",
      "data_bounding_box": (23.16722,51.25930,32.82244,56.18162),
 },\
 
@@ -125,7 +127,9 @@ layers = {\
      "scalable": True,                 # could zN tile be constructed of four z(N+1) tiles
      "max_zoom": 19,
      "proj": "EPSG:3857",
-      "remote_url": "http://khm1.google.com/kh/v=57&x=%s&y=%s&z=%s&s=%s",
+      "fetch": fetchers.Tile, # function that fetches given tile. should return None if tile wasn't fetched
+      #              http://khm1.google.com/kh/v=57&x=63&y=98&z=8&s=Galileo
+      #"remote_url": "http://khm1.google.com/kh/v=57&x=%s&y=%s&z=%s&s=%s",
       "transform_tile_number": lambda z,x,y: ( x, y, z-1, "Galileo"[ 0 : ((x*3+y)%8) ] ),
 },\
 "navitel":  { \
@@ -136,7 +140,7 @@ layers = {\
      "fetch": fetchers.Tile, # function that fetches given tile. should return None if tile wasn't fetched
      "remote_url": "http://map.navitel.su/navitms.fcgi?t=%08i,%08i,%02i",
      "transform_tile_number": lambda z,x,y: (x, 2**(z-1)-y-1, z-1),
-     "min_zoom": 7,
+     "min_zoom": 6,
      "proj": "EPSG:3857",
      "data_bounding_box": (17.999999997494381, 39.999999995338634, 172.99999997592218, 77.999999996263981),
 },\

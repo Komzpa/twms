@@ -49,25 +49,13 @@ except ImportError:
 OK = 200
 ERROR = 500
 
+cached_objs = {}        # a dict. (layer, z, x, y): PIL image
+cached_hist_list = []
 
 
-try:
-        import psyco
-        psyco.full()
-except ImportError:
-        pass
+print >> sys.stderr, "New copy started"
+sys.stderr.flush()
 
-
-
-
-def handler():
-    """
-    A handler for web.py.
-    """
-    data = web.input()
-    resp, ctype, content = twms_main(data)
-    web.header('Content-type', ctype)
-    return content
 
 
 def twms_main(req):
@@ -76,6 +64,12 @@ def twms_main(req):
     req - dictionary of params. 
     returns (error_code, content_type, data)
     """
+
+    #print >> sys.stderr, len(cached_objs), " --- cached items"
+    #sys.stderr.flush()
+    
+    
+    
     start_time = datetime.datetime.now()
     formats = {"image/gif":"GIF","image/jpeg":"JPEG","image/jpg":"JPEG","image/png":"PNG","image/bmp":"BMP"}
     content_type = "text/html"
@@ -95,8 +89,9 @@ def twms_main(req):
 
     req_type = data.get("REQUEST",data.get("request","GetMap"))
     version = data.get("VERSION",data.get("version","1.1.1"))
+    ref = data.get("ref",config.service_url)
     if req_type == "GetCapabilities":
-     content_type, resp = capabilities.get(version)
+     content_type, resp = capabilities.get(version, ref)
      return (OK, content_type, resp)
 
     layer = data.get("layers",data.get("LAYERS", config.default_layers)).split(",")
@@ -118,7 +113,7 @@ def twms_main(req):
     filt = data.get ("filter","").split(",")
     if layer == [""] :
       content_type = "text/html"
-      resp = overview.html()
+      resp = overview.html(ref)
       return (OK, content_type, resp)
 
     format = data.get("format", data.get("FORMAT", config.default_format))
@@ -137,9 +132,10 @@ def twms_main(req):
       x = int(data.get("x",data.get("X",0)))
       y = int(data.get("y",data.get("Y",0)))
       z = int(data.get("z",data.get("Z",1))) + 1
-      if data.get("layer",data.get("layers",data.get("LAYERS","osm"))) in config.layers:
-       if config.layers[layer]["proj"] == srs and width is 256 and height is 256 and not filt and not force:
-          local = config.tiles_cache + config.layers[layer]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
+      if len(layer) == 1:
+       if layer[0] in config.layers:
+        if config.layers[layer[0]]["proj"] == srs and width is 256 and height is 256 and not filt and not force:
+          local = config.tiles_cache + config.layers[layer[0]]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
           ext = config.layers[layer]["ext"]
           adds = ["","ups."]
           for add in adds:
@@ -232,7 +228,10 @@ def twms_main(req):
         result_img.save(image_content, formats[format], quality=config.output_quality)
     elif formats[format] == "PNG":
        result_img.save(image_content, formats[format], progressive=config.output_progressive, optimize =config.output_optimize)
+    elif formats[format] == "GIF":
+       result_img.save(image_content, formats[format], quality=config.output_quality, progressive=config.output_progressive)
     else:       ## workaround for GIF
+       result_img = result_img.convert("RGB")
        result_img.save(image_content, formats[format], quality=config.output_quality, progressive=config.output_progressive)
     resp = image_content.getvalue()
     return (OK, content_type, resp)
@@ -273,6 +272,11 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
      return None
    if not bbox.bbox_is_in(projections.bbox_by_tile(z,x,y,layer["proj"]), layer.get("data_bounding_box",config.default_bbox), fully=False):
      return None
+     
+   global cached_objs, cached_hist_list
+   if "prefix" in layer:
+     if (layer["prefix"], z, x, y) in cached_objs:
+      return cached_objs[(layer["prefix"], z, x, y)]
    if layer.get("cached", True):
     local = config.tiles_cache + layer["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
     ext = layer["ext"]
@@ -349,7 +353,8 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
               return im
 
 def getimg (bbox, size, layer, start_time):
-
+  
+   global cached_objs
    H,W = size
 
    zoom = getbestzoom (bbox,size,layer)
@@ -372,7 +377,18 @@ def getimg (bbox, size, layer, start_time):
     for y in range (to_tile_y, from_tile_y+1):
      got_image = False
      im1 = tile_image (layer,zoom,x,y, start_time, real = True)
-     if not im1:
+     if im1:
+      if "prefix" in layer:
+       if (layer["prefix"], zoom, x, y) not in cached_objs:
+          cached_objs[(layer["prefix"], zoom, x, y)] = im1
+          cached_hist_list.append((layer["prefix"], zoom, x, y))
+          #print >> sys.stderr, (layer["prefix"], zoom, x, y), cached_objs[(layer["prefix"], zoom, x, y)]
+          #sys.stderr.flush()
+       if len(cached_objs) >= config.max_ram_cached_tiles:
+          del cached_objs[cached_hist_list.pop(0)]
+          #print >> sys.stderr, "Removed tile from cache", 
+          #sys.stderr.flush()
+     else:
           ec = ImageColor.getcolor(layer.get("empty_color", config.default_background), "RGBA")
           #ec = (ec[0],ec[1],ec[2],0)
           im1 = Image.new("RGBA", (256, 256), ec)
@@ -382,36 +398,3 @@ def getimg (bbox, size, layer, start_time):
    out = out.crop(bbox_im)
    #out = reproject(out, bbox, layer["proj"], "EPSG:4326")
    return out
-
-
-
-
-if __name__ == "__main__":
-    try:
-     if sys.argv[1] == "josm":
-      import cgi
-      url, params = sys.argv[2].split("/?", 1)
-      data = cgi.parse_qs(params)
-      for t in data.keys():
-        data[t] = data[t][0]
-      resp, ctype, content = twms_main(data)
-      print content
-      exit()
-    except IndexError:
-      pass
-    try:
-          import web
-    except ImportError:
-          pass
-
-
-    urls = (
-        '/(.*)', 'mainhandler'
-    )
-
-    class mainhandler:
-        def GET(self, crap):
-            return handler()
-    app = web.application(urls, globals())
-    app.run()
-

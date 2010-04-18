@@ -18,7 +18,7 @@
 from config import *
 import projections
 
-def html():
+def html(ref):
     """
     Gives overall information about tWMS server and its layers in HTML format.
     """
@@ -30,12 +30,12 @@ def html():
     for i in layers:
       bbox =  layers[i].get("data_bounding_box", projections.projs[layers[i]["proj"]]["bounds"] )
       resp += "<tr><td><img src=\""
-      resp += service_url + "?layers=" + i+ "&bbox=%s,%s,%s,%s" % bbox + "&width=200\" width=\"200\" /></td><td><h3>"
+      resp += ref + "?layers=" + i+ "&bbox=%s,%s,%s,%s" % bbox + "&width=200\" width=\"200\" /></td><td><h3>"
       resp += layers[i]["name"]
       resp += "</h3><b>Bounding box:</b> "+ str(bbox) +" (show on <a href=\"http://openstreetmap.org/?minlon=%s&minlat=%s&maxlon=%s&maxlat=%s&box=yes\">OSM</a>" % bbox  +")<br />"
       resp += "<b>Projection:</b> "+ layers[i]["proj"]  +"<br />"
-      resp += "<b>WMS half-link:</b> "+ service_url+"?layers="+ i +"&<br />"
-      resp += "<b>Tiles URL:</b> "+ service_url+"?layers="+ i +"&request=GetTile&z=!&x=!&y=! <br />"
+      resp += "<b>WMS half-link:</b> "+ ref+"?layers="+ i +"&<br />"
+      resp += "<b>Tiles URL:</b> "+ ref+"?layers="+ i +"&request=GetTile&z=!&x=!&y=! <br />"
       resp += "</td></tr>"
     resp += "</table></body></html>"
     return resp
