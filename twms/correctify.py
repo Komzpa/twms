@@ -33,7 +33,7 @@ def rectify(layer, point):
     #print >> sys.stderr, pickle.dumps(coefs[layer])
 #    sys.stderr.flush()
     lonaz, loniz, lataz, latiz = lona, loni, lata, lati
-    maxdist = (18.0)
+    maxdist = (1.80)
     for line in corr:
        d,c,b,a,user,ts = line.split()
        d,c,b,a = (float(d),float(c),float(b),float(a))

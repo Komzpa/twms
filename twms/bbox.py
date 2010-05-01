@@ -20,7 +20,7 @@ def point_is_in(bbox, point):
    """
    Checks whether EPSG:4326 point is in bbox
    """
-   bbox = normalize(bbox)[0]
+   #bbox = normalize(bbox)[0]
    
    return point[0]>=bbox[0] and point[0]<=bbox[2] and point[1]>=bbox[1] and point[1]<=bbox[3]
 

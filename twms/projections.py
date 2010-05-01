@@ -14,8 +14,18 @@
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
-
-import pyproj
+try:
+   import pyproj
+except ImportError:
+   class pyproj:
+     class Proj:
+       def __init__(self, pstring):
+         self.pstring = pstring
+     def transform(self, pr1, pr2, c1, c2):
+       if pr1.pstring == pr2.pstring:
+         return c1, c2
+       else:
+         raise NotImplementedError("Pyproj is not installed - can't convert between projectios. Install pyproj please.")
 
 
 projs = {
@@ -105,6 +115,9 @@ def transform (line, srs1, srs2):
     line - a list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
     srs[1,2] - text string, specifying projection (srs1 - from, srs2 - to)
     """
+    if srs1 == srs2:
+      return line
+    
     line = list(line)
     serial = False
     if (type(line[0]) is not tuple) and (type(line[0]) is not list):

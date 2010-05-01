@@ -100,7 +100,7 @@ def Tile (z, x, y, this_layer):
      open(local+ this_layer["ext"], "wb").write(contents)
    
    if "dead_tile" in this_layer:
-    dt = open(this_layer["dead_tile"],"r").read()
+    dt = open(this_layer["dead_tile"],"rb").read()
     if contents == dt:
       if this_layer.get("cached", True):
         tne = open (local+"tne", "wb")

@@ -15,7 +15,6 @@
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
 from bbox import *
-from pyjamas import Window
 
 string = "abcdefghijklmnopqrstuvwxyz012345ABCDEFGHIJKLMNOPQRSTUVWXYZ6789{}"
 
@@ -24,16 +23,17 @@ string = "abcdefghijklmnopqrstuvwxyz012345ABCDEFGHIJKLMNOPQRSTUVWXYZ6789{}"
 def decode(bbox, sketch):
     version, sketch = sketch.split(";",1)
     
-def code_point(bbox, point, length):
+def encode_point(bbox, point, length, length_out = None):
+   if not length_out:
+     length_out = length
    code = "."
    if not point_is_in(bbox, point):
       bbox = (-180,-90,180,90)
       code += "@"
-      length -= 1
+      length = length_out - 1 
    lon,lat = point
    lon = (lon-bbox[0])/(bbox[2]-bbox[0])    #normalizing points to bbox
    lat = (lat-bbox[1])/(bbox[3]-bbox[1])
-   print lat,lon
    lats, lons = [], []
    
    for i in range(0,length):
@@ -41,9 +41,11 @@ def code_point(bbox, point, length):
      lont = int(lon*8)
      lat = lat*8 - int(lat*8)
      lon = lon*8 - int(lon*8)
-     print latt,lont, lont*8+latt
      code += string[lont*8+latt]
    return code
+
+
+
 def decode_point(bbox, code):
    lat,lon = (0,0)
    if code[0] == ".":
@@ -59,10 +61,9 @@ def decode_point(bbox, code):
 
      code = c
 
-     print code
+
      for t in code:
        z = string.find(t)
-       print z
        lont = int(z/8.)
        latt = (z/8. - int(z/8.))*8
        lat += latt
@@ -71,7 +72,7 @@ def decode_point(bbox, code):
        lon /= 8.
      lat = lat*(bbox[3]-bbox[1])+bbox[1]
      lon = lon*(bbox[2]-bbox[0])+bbox[0]
-     print lat,lon
+     return lon, lat
 
 #Window.alert(code_point((0,0,0,0), 53.11, 27.3434))
-print decode_point((0,0,0,0), ".@aaa")
+#print decode_point((0,0,0,0), ".@aaa")
