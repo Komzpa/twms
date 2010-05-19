@@ -27,6 +27,12 @@ import config
 import projections
 
 
+try:
+   from kothic.twms_fetcher import kothic_fetcher
+except ImportError:
+   kothic_fetcher = lambda x,y,z,t: None
+
+
 def WMS (z, x, y, this_layer):
 
    

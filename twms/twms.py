@@ -184,7 +184,7 @@ def twms_main(req):
     for ll in layer:
      if "nocorrect" not in force:
         box = correctify.r_bbox(config.layers[ll], req_bbox)
-     im2 = getimg(req_bbox, (height, width), config.layers[ll],  start_time)
+     im2 = getimg(box, (height, width), config.layers[ll],  start_time)
 
      if "empty_color" in config.layers[ll]:
       ec = ImageColor.getcolor(config.layers[ll]["empty_color"], "RGBA")

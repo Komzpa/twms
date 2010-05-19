@@ -17,7 +17,7 @@ import fetchers
 
 
 debug = True
-max_ram_cached_tiles = 256
+max_ram_cached_tiles = 1024
 
 tiles_cache = "/var/www/latlon/wms/cache/"                   # where to put cache
 install_path = "/var/www/latlon/wms/"                        # where to look for broken tiles and other stuff
@@ -98,10 +98,22 @@ layers = {\
      "cached": False,
      "scalable": False,                 # could zN tile be constructed of four z(N+1) tiles
      "fetch": fetchers.Tile,    # function that fetches given tile. should return None if tile wasn't fetched
-     "remote_url": "http://tile.latlon.org/tiles/%s/%s/%s.png",
+     "remote_url": "http://d.tile.latlon.org/tiles/%s/%s/%s.png",
      "transform_tile_number": lambda z,x,y: (z-1,x,y),
      "proj": "EPSG:3857",
      "empty_color": "#f2efe9",
+     "data_bounding_box": (23.16722,51.25930,32.82244,56.18162),
+},\
+
+"kothic": { \
+     "name": "Kothic - Belarus",
+     "prefix": "kothic",
+     "cached": False,
+     "scalable": False,                 # could zN tile be constructed of four z(N+1) tiles
+     "fetch": fetchers.kothic_fetcher,    # function that fetches given tile. should return None if tile wasn't fetched
+     "transform_tile_number": lambda z,x,y: (z-1,x,y),
+     "proj": "EPSG:3857",
+#     "empty_color": "#f2efe9",
      "data_bounding_box": (23.16722,51.25930,32.82244,56.18162),
 },\
 
@@ -129,7 +141,7 @@ layers = {\
      "proj": "EPSG:3857",
       "fetch": fetchers.Tile, # function that fetches given tile. should return None if tile wasn't fetched
       #              http://khm1.google.com/kh/v=57&x=63&y=98&z=8&s=Galileo
-      #"remote_url": "http://khm1.google.com/kh/v=57&x=%s&y=%s&z=%s&s=%s",
+      "remote_url": "http://khm1.google.com/kh/v=57&x=%s&y=%s&z=%s&s=%s",
       "transform_tile_number": lambda z,x,y: ( x, y, z-1, "Galileo"[ 0 : ((x*3+y)%8) ] ),
 },\
 "navitel":  { \
