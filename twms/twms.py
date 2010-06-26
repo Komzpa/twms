@@ -288,8 +288,11 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
            os.remove(f)
 
     gpt_image = False
-    if not os.path.exists("/".join(local.split("/")[:-1])):
-        os.makedirs("/".join(local.split("/")[:-1]))
+    try:
+      "trying to create local cache directory, if it doesn't exist"
+      os.makedirs("/".join(local.split("/")[:-1]))
+    except OSError:
+      pass
     if not os.path.exists(local+"tne") and not os.path.exists(local+"lock"):
       if os.path.exists(local+ext):                     # First, look for tile in cache
         try:
