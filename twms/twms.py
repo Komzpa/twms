@@ -16,6 +16,7 @@
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
 from PIL import Image, ImageOps, ImageColor
+import imp
 import os
 import math
 import sys
@@ -24,6 +25,14 @@ import StringIO
 import time
 import datetime
 
+sys.path.append(os.path.join(os.path.realpath(sys.path[0]), "twms"))
+
+config_path = "/etc/twms/twms.conf"
+
+if os.path.exists(config_path):
+        imp.load_source("config", config_path)
+else:
+        imp.load_source("config", os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
 
 import correctify
 import capabilities
