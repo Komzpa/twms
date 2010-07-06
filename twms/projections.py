@@ -40,7 +40,39 @@ projs = {
     "EPSG:3857":{
                   "proj": pyproj.Proj("+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs"),
                   "bounds": (-180.0,-85.0511287798,180.0,85.0511287798),
-                }
+                },
+    "EPSG:32635":{
+                  "proj": pyproj.Proj("+proj=utm +zone=35 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+                  "bounds": (-180.0,-90.0,180.0,90.0),
+                },
+    "EPSG:32636":{
+                  "proj": pyproj.Proj("+proj=utm +zone=36 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+                  "bounds": (-180.0,-90.0,180.0,90.0),
+                },
+    "EPSG:32637":{
+                  "proj": pyproj.Proj("+proj=utm +zone=37 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+                  "bounds": (-180.0,-90.0,180.0,90.0),
+                },
+    "EPSG:32638":{
+                  "proj": pyproj.Proj("+proj=utm +zone=38 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+                  "bounds": (-180.0,-90.0,180.0,90.0),
+                },
+    "EPSG:32639":{
+                  "proj": pyproj.Proj("+proj=utm +zone=39 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+                  "bounds": (-180.0,-90.0,180.0,90.0),
+                },
+    "EPSG:32640":{
+                  "proj": pyproj.Proj("+proj=utm +zone=40 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+                  "bounds": (-180.0,-90.0,180.0,90.0),
+                },
+    "EPSG:32641":{
+                  "proj": pyproj.Proj("+proj=utm +zone=41 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+                  "bounds": (-180.0,-90.0,180.0,90.0),
+                },
+    "EPSG:32642":{
+                  "proj": pyproj.Proj("+proj=utm +zone=42 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+                  "bounds": (-180.0,-90.0,180.0,90.0),
+                },
         }
 proj_alias = {
      "EPSG:900913": "EPSG:3857",

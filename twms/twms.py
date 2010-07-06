@@ -16,7 +16,6 @@
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
 from PIL import Image, ImageOps, ImageColor
-import imp
 import os
 import math
 import sys
@@ -25,19 +24,12 @@ import StringIO
 import time
 import datetime
 
-sys.path.append(os.path.join(os.path.realpath(sys.path[0]), "twms"))
-
-config_path = "/etc/twms/twms.conf"
-
-if os.path.exists(config_path):
-        imp.load_source("config", config_path)
-else:
-        imp.load_source("config", os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
 
 import correctify
 import capabilities
 import config
 import bbox
+import bbox as bbox_utils
 import projections
 import drawing
 import filter
@@ -179,7 +171,7 @@ def twms_main(req):
     if "nocorrect" not in force:
       box = correctify.r_bbox(config.layers[ll], req_bbox)
 
-    result_img = getimg(box, (height, width), config.layers[ll], start_time)
+    result_img = getimg(box,srs, (height, width), config.layers[ll], start_time)
 
     if "noresize" not in force:
       if (height == width) and (height == 0):
@@ -193,7 +185,7 @@ def twms_main(req):
     for ll in layer:
      if "nocorrect" not in force:
         box = correctify.r_bbox(config.layers[ll], req_bbox)
-     im2 = getimg(box, (height, width), config.layers[ll],  start_time)
+     im2 = getimg(box, srs,(height, width), config.layers[ll],  start_time)
 
      if "empty_color" in config.layers[ll]:
       ec = ImageColor.getcolor(config.layers[ll]["empty_color"], "RGBA")
@@ -364,8 +356,18 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
             if im:
               return im
 
-def getimg (bbox, size, layer, start_time):
-  
+def getimg (bbox, request_proj, size, layer, start_time):
+   orig_bbox = bbox
+   ## Making 4-corner maximal bbox
+   bbox_p = projections.from4326(bbox, request_proj)
+   bbox_p = projections.to4326((bbox_p[2],bbox_p[1],bbox_p[0],bbox_p[3]), request_proj)
+
+   bbox_4 = ( (bbox_p[2],bbox_p[3]),(bbox[0], bbox[1]),(bbox_p[0],bbox_p[1]),(bbox[2],bbox[3]) )
+   bbox_p = (bbox_p[2],bbox_p[1],bbox_p[0],bbox_p[3])
+   print bbox_4
+   bbox = bbox_utils.add(bbox, bbox_p)
+
+   
    global cached_objs
    H,W = size
 
@@ -408,5 +410,19 @@ def getimg (bbox, size, layer, start_time):
 
      out.paste(im1,((x - from_tile_x)*256, (-to_tile_y + y )*256,))
    out = out.crop(bbox_im)
-   #out = reproject(out, bbox, layer["proj"], "EPSG:4326")
+   #bbox_p = projections.from4326(orig_bbox, request_proj)
+   quad = []
+   for point in bbox_4:
+     y = (1-(point[1]-bbox[1])/(bbox[3]-bbox[1]))*out.size[1]
+     x = (point[0]-bbox[0])/(bbox[2]-bbox[0])*out.size[0]
+     quad.append(int(x))
+     quad.append(int(y))
+   print quad
+   quad = tuple(quad)
+   
+   out = out.transform(size, Image.QUAD, quad, Image.BICUBIC)
+   #out = out.resize(size)
+   #out = Image.blend(out, out1, 0.5)
+   
+   #out = reproject(out, bbox, layer["proj"], request_proj)
    return out
