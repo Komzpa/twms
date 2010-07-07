@@ -49,8 +49,15 @@ def add(b1, b2):
    """
    Returns bbox that contains two bboxes.
    """
-   return (min(b1[0],b2[0]),min(b1[1],b2[1]),max(b1[2],b2[2]),min(b1[3],b2[3]))
+   return (min(b1[0],b2[0]),min(b1[1],b2[1]),max(b1[2],b2[2]),max(b1[3],b2[3]))
 
+def expand_to_point(b1, p1):
+  """
+  Expands bbox b1 to contain p1: [(x,y),(x,y)]
+  """
+  for p in p1:
+    b1 = add(b1, (p[0],p[1],p[0],p[1]))
+  return b1
 def normalize (bbox):
    """
    Normalizes EPSG:4326 bbox order. Returns normalized bbox, and whether it was flipped on horizontal axis.

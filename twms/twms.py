@@ -168,10 +168,8 @@ def twms_main(req):
 
     imgs = 1.
     ll = layer.pop(0)
-    if "nocorrect" not in force:
-      box = correctify.r_bbox(config.layers[ll], req_bbox)
 
-    result_img = getimg(box,srs, (height, width), config.layers[ll], start_time)
+    result_img = getimg(box,srs, (height, width), config.layers[ll], start_time, force)
 
     if "noresize" not in force:
       if (height == width) and (height == 0):
@@ -183,9 +181,8 @@ def twms_main(req):
       result_img = result_img.resize((width,height), Image.ANTIALIAS)
     #width, height =  result_img.size
     for ll in layer:
-     if "nocorrect" not in force:
-        box = correctify.r_bbox(config.layers[ll], req_bbox)
-     im2 = getimg(box, srs,(height, width), config.layers[ll],  start_time)
+
+     im2 = getimg(box, srs,(height, width), config.layers[ll],  start_time, force)
 
      if "empty_color" in config.layers[ll]:
       ec = ImageColor.getcolor(config.layers[ll]["empty_color"], "RGBA")
@@ -356,16 +353,21 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
             if im:
               return im
 
-def getimg (bbox, request_proj, size, layer, start_time):
+def getimg (bbox, request_proj, size, layer, start_time, force):
    orig_bbox = bbox
    ## Making 4-corner maximal bbox
    bbox_p = projections.from4326(bbox, request_proj)
    bbox_p = projections.to4326((bbox_p[2],bbox_p[1],bbox_p[0],bbox_p[3]), request_proj)
-
+   
    bbox_4 = ( (bbox_p[2],bbox_p[3]),(bbox[0], bbox[1]),(bbox_p[0],bbox_p[1]),(bbox[2],bbox[3]) )
-   bbox_p = (bbox_p[2],bbox_p[1],bbox_p[0],bbox_p[3])
-   print bbox_4
-   bbox = bbox_utils.add(bbox, bbox_p)
+   if "nocorrect" not in force:
+     bb4 = []
+     for point in bbox_4:
+       bb4.append(correctify.rectify(layer, point))
+     bbox_4 = bb4
+   bbox = bbox_utils.expand_to_point(bbox, bbox_4)
+   print bbox
+   print orig_bbox
 
    
    global cached_objs
@@ -409,20 +411,25 @@ def getimg (bbox, request_proj, size, layer, start_time):
 
 
      out.paste(im1,((x - from_tile_x)*256, (-to_tile_y + y )*256,))
+
+   ## TODO: Here's a room for improvement. we could drop this crop in case user doesn't need it.
    out = out.crop(bbox_im)
-   #bbox_p = projections.from4326(orig_bbox, request_proj)
+   #bbox = orig_bbox
    quad = []
+   trans_needed = False
    for point in bbox_4:
-     y = (1-(point[1]-bbox[1])/(bbox[3]-bbox[1]))*out.size[1]
-     x = (point[0]-bbox[0])/(bbox[2]-bbox[0])*out.size[0]
-     quad.append(int(x))
-     quad.append(int(y))
-   print quad
-   quad = tuple(quad)
+     x = (point[0]-bbox[0])/(bbox[2]-bbox[0])*(out.size[0])
+     y = (1-(point[1]-bbox[1])/(bbox[3]-bbox[1]))*(out.size[1])
+     x = int(round(x))
+     y = int(round(y))
+     if (x is not 0 and x is not out.size[0]) or (y is not 0 and y is not out.size[1]):
+       trans_needed = True
+     quad.append(x)
+     quad.append(y)
    
-   out = out.transform(size, Image.QUAD, quad, Image.BICUBIC)
-   #out = out.resize(size)
-   #out = Image.blend(out, out1, 0.5)
-   
+   if trans_needed:
+     quad = tuple(quad)
+     out = out.transform(size, Image.QUAD, quad, Image.BICUBIC)
+
    #out = reproject(out, bbox, layer["proj"], request_proj)
    return out
