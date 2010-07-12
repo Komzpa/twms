@@ -16,6 +16,7 @@
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
 from PIL import Image, ImageOps, ImageColor
+import imp
 import os
 import math
 import sys
@@ -23,6 +24,12 @@ import urllib
 import StringIO
 import time
 import datetime
+sys.path.append(os.path.join(os.path.realpath(sys.path[0]), "twms"))
+config_path = "/etc/twms/twms.conf"
+if os.path.exists(config_path):
+  imp.load_source("config", config_path)
+else:
+  imp.load_source("config", os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
 
 
 import correctify
@@ -78,6 +85,7 @@ def twms_main(req):
     data = req
     srs = data.get("srs", data.get("SRS", "EPSG:4326"))
     gpx = data.get("gpx",None)
+    wkt = data.get("wkt",data.get("WKT",""))
     track = False
     if not gpx:
       req_bbox = projections.from4326((27.6518898,53.8683186,27.6581944,53.8720359), srs)
@@ -96,6 +104,9 @@ def twms_main(req):
      return (OK, content_type, resp)
 
     layer = data.get("layers",data.get("LAYERS", config.default_layers)).split(",")
+    if ("LAYERS" in data or "layers" in data) and not layer[0]:
+      layer = ["transparent"]
+      
     if req_type == "GetCorrections":
        points = data.get("points",data.get("POINTS", "")).split("=")
        resp = ""
@@ -168,19 +179,27 @@ def twms_main(req):
 
     imgs = 1.
     ll = layer.pop(0)
+    if ll[-2:] == "!c":
+      ll = ll[:-2]
+      if wkt:
+        wkt = ","+wkt
+      wkt = correctify.corr_wkt(config.layers[ll]) + wkt
+      srs = config.layers[ll]["proj"]
+    try:
+      result_img = getimg(box,srs, (height, width), config.layers[ll], start_time, force)
+    except KeyError:
+      result_img = Image.new("RGBA", (height, width))
+    
 
-    result_img = getimg(box,srs, (height, width), config.layers[ll], start_time, force)
 
-    if "noresize" not in force:
-      if (height == width) and (height == 0):
-        width, height = result_img.size
-      if height == 0:
-        height = result_img.size[1]*width/result_img.size[0]
-      if width == 0:
-        width = result_img.size[0]*height/result_img.size[1]
-      result_img = result_img.resize((width,height), Image.ANTIALIAS)
     #width, height =  result_img.size
     for ll in layer:
+     if ll[-2:] == "!c":
+       ll = ll[:-2]
+       if wkt:
+         wkt = ","+wkt
+       wkt = correctify.corr_wkt(config.layers[ll]) + wkt
+       srs = config.layers[ll]["proj"]
 
      im2 = getimg(box, srs,(height, width), config.layers[ll],  start_time, force)
 
@@ -191,8 +210,7 @@ def twms_main(req):
       for x in range(0,im2.size[0]):
         for y in range(0,im2.size[1]):
           t = i2l[x,y]
-          #print >> sys.stderr, ec, t, ec == t
-          #sys.stderr.flush()
+
 
           if ec == t:
             i2l[x,y] = (t[0],t[1],t[2],0)
@@ -208,8 +226,9 @@ def twms_main(req):
 
     ##Applying filters
     result_img = filter.raster(result_img, filt)
-    wkt = data.get("wkt",data.get("WKT",None))
 
+    print >> sys.stderr, wkt
+    sys.stderr.flush()
     if wkt:
       result_img = drawing.wkt(wkt, result_img, req_bbox, srs)
     if gpx:
@@ -366,8 +385,8 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
        bb4.append(correctify.rectify(layer, point))
      bbox_4 = bb4
    bbox = bbox_utils.expand_to_point(bbox, bbox_4)
-   print bbox
-   print orig_bbox
+   #print bbox
+   #print orig_bbox
 
    
    global cached_objs
@@ -414,6 +433,13 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
 
    ## TODO: Here's a room for improvement. we could drop this crop in case user doesn't need it.
    out = out.crop(bbox_im)
+   if "noresize" not in force:
+      if (H == W) and (H == 0):
+        W, H = out.size
+      if H == 0:
+        H = out.size[1]*W/out.size[0]
+      if W == 0:
+        W = out.size[0]*H/out.size[1]
    #bbox = orig_bbox
    quad = []
    trans_needed = False
@@ -429,7 +455,9 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
    
    if trans_needed:
      quad = tuple(quad)
-     out = out.transform(size, Image.QUAD, quad, Image.BICUBIC)
-
+     out = out.transform((W,H), Image.QUAD, quad, Image.BICUBIC)
+   elif (W != out.size[0]) or (H != out.size[1]):
+     "just resize"
+     out = out.resize((W,H), Image.ANTIALIAS)
    #out = reproject(out, bbox, layer["proj"], request_proj)
    return out
