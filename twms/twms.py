@@ -146,7 +146,7 @@ def twms_main(req):
       z = int(data.get("z",data.get("Z",1))) + 1
       if len(layer) == 1:
        if layer[0] in config.layers:
-        if config.layers[layer[0]]["proj"] == srs and width is 256 and height is 256 and not filt and not force:
+        if config.layers[layer[0]]["proj"] == srs and width is 256 and height is 256 and not filt and not force and not correctify.has_corrections(layer[0]):
           local = config.tiles_cache + config.layers[layer[0]]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
           ext = config.layers[layer]["ext"]
           adds = ["","ups."]
@@ -188,7 +188,7 @@ def twms_main(req):
     try:
       result_img = getimg(box,srs, (height, width), config.layers[ll], start_time, force)
     except KeyError:
-      result_img = Image.new("RGBA", (height, width))
+      result_img = Image.new("RGBA", (width,height))
     
 
 
@@ -314,7 +314,7 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
       if os.path.exists(local+ext):                     # First, look for tile in cache
         try:
             im1 = Image.open(local+ext)
-            a = im1.load()
+            im1.is_ok = True
             return im1
         except IOError:
           if os.path.exists(local+"lock"):
@@ -326,6 +326,7 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
       if layer["scalable"] and (z<layer.get("max_zoom", config.default_max_zoom)) and trybetter:      # Second, try to glue image of better ones
           if os.path.exists(local+"ups."+ext):
               im = Image.open(local+"ups."+ext)
+              im.is_ok = True
               return im
           ec = ImageColor.getcolor(layer.get("empty_color", config.default_background), "RGBA")
           ec = (ec[0],ec[1],ec[2],0)
@@ -345,6 +346,7 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
                 im = im.resize((256,256),Image.ANTIALIAS)
                 if layer.get("cached", True):
                   im.save(local+"ups."+ext)
+                im.is_ok = True
                 return im
       if not again:
 
@@ -355,12 +357,14 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
 
             im = layer["fetch"](z,x,y,layer)    # Try fetching from outside
             if im:
+              im.is_ok = True
               return im
     if real and (z>1):
           im = tile_image(layer, z-1, int(x/2), int(y/2), start_time,  again=False, trybetter=False, real=True)
           if im:
             im = im.crop((128 * (x % 2), 128 * (y % 2), 128 * (x % 2) + 128, 128 * (y % 2) + 128))
             im = im.resize((256,256), Image.BILINEAR)
+            im.is_ok = False
             return im
    else:
       if "fetch" in layer:
@@ -370,6 +374,7 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
 
             im = layer["fetch"](z,x,y,layer)    # Try fetching from outside
             if im:
+              im.is_ok = True
               return im
 
 def getimg (bbox, request_proj, size, layer, start_time, force):
@@ -415,6 +420,7 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
      if im1:
       if "prefix" in layer:
        if (layer["prefix"], zoom, x, y) not in cached_objs:
+         if im1.is_ok:
           cached_objs[(layer["prefix"], zoom, x, y)] = im1
           cached_hist_list.append((layer["prefix"], zoom, x, y))
           #print >> sys.stderr, (layer["prefix"], zoom, x, y), cached_objs[(layer["prefix"], zoom, x, y)]
