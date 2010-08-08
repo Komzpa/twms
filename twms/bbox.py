@@ -14,6 +14,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 import sys
+import projections
 
 
 def point_is_in(bbox, point):
@@ -78,3 +79,24 @@ def normalize (bbox):
    
 
    return bbox, flip_h
+
+
+def zoom_for_bbox (bbox, size, layer, min_zoom = 1, max_zoom = 18,max_size = (10000,10000)):
+   """
+   Calculate a best-fit zoom level
+   """
+
+   h,w = size
+   for i in range (min_zoom,max_zoom):
+     cx1, cy1, cx2, cy2 =  projections.tile_by_bbox (bbox, i, layer["proj"])
+     if w is not 0:
+      if (cx2-cx1)*256 >= w :
+       return i
+     if h is not 0:
+      if (cy1-cy2)*256 >= h:
+       return i
+     if (cy1-cy2)*256 >= max_size[0]/2:
+       return i
+     if (cx2-cx1)*256 >= max_size[1]/2:
+       return i
+   return max_zoom

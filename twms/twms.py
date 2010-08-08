@@ -27,14 +27,16 @@ import datetime
 sys.path.append(os.path.join(os.path.realpath(sys.path[0]), "twms"))
 config_path = "/etc/twms/twms.conf"
 if os.path.exists(config_path):
-  imp.load_source("config", config_path)
+  config = imp.load_source("config", config_path)
 else:
-  imp.load_source("config", os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
+  config = imp.load_source("config", os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
+  sys.stderr.write( os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
+  sys.stderr.flush()
 
 
 import correctify
 import capabilities
-import config
+#import config
 import bbox
 import bbox as bbox_utils
 import projections
@@ -60,9 +62,6 @@ ERROR = 500
 cached_objs = {}        # a dict. (layer, z, x, y): PIL image
 cached_hist_list = []
 
-
-print >> sys.stderr, "New copy started"
-sys.stderr.flush()
 
 
 
@@ -254,29 +253,6 @@ def twms_main(req):
     return (OK, content_type, resp)
 
 
-
-def getbestzoom (bbox, size, layer):
-   """
-   Calculate a best-fit zoom level
-   """
-   max_zoom = layer.get("max_zoom",config.default_max_zoom)
-   min_zoom = layer.get("min_zoom",1)
-   h,w = size
-   for i in range (min_zoom,max_zoom):
-     cx1, cy1, cx2, cy2 =  projections.tile_by_bbox (bbox, i, layer["proj"])
-     if w is not 0:
-      if (cx2-cx1)*256 >= w :
-       return i
-     if h is not 0:
-      if (cy1-cy2)*256 >= h:
-       return i
-     if (cy1-cy2)*256 >= config.max_height/2:
-       return i
-     if (cx2-cx1)*256 >= config.max_width/2:
-       return i
-
-   return max_zoom
-
 def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real = False):
    """
    Returns asked image.
@@ -396,8 +372,11 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
    
    global cached_objs
    H,W = size
-
-   zoom = getbestzoom (bbox,size,layer)
+   
+   max_zoom = layer.get("max_zoom",config.default_max_zoom)
+   min_zoom = layer.get("min_zoom",1)
+   
+   zoom = bbox_utils.zoom_for_bbox (bbox,size,layer, min_zoom, max_zoom, (config.max_height,config.max_width))
    lo1, la1, lo2, la2 = bbox
    from_tile_x, from_tile_y, to_tile_x, to_tile_y = projections.tile_by_bbox(bbox, zoom, layer["proj"])
    cut_from_x = int(256*(from_tile_x - int(from_tile_x)))
