@@ -16,6 +16,7 @@
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
 import web
+import sys
 from twms.twms import *
 
 try:
