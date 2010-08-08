@@ -13,6 +13,7 @@
 
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
+import math
 
 try:
    import pyproj
@@ -78,6 +79,21 @@ proj_alias = {
      "EPSG:900913": "EPSG:3857",
      "EPSG:3785": "EPSG:3857",
               }
+
+def _c4326t3857(t1,t2,lon,lat):
+  """
+  Pure python 3857 -> 4326 transform. About 8x faster than pyproj.
+  """
+  lat_rad = math.radians(lat)
+  xtile = lon * 20037508.342789244 / 180
+  ytile = math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad)))/math.pi * 20037508.342789244
+  return(xtile, ytile)
+
+  
+pure_python_transformers = {
+  ("EPSG:4326", "EPSG:3857"): _c4326t3857,
+  }
+
 
 def tile_by_bbox(bbox, zoom, srs):
     """
@@ -147,9 +163,17 @@ def transform (line, srs1, srs2):
     line - a list of [lat0,lon0,lat1,lon1,...] or [(lat0,lon0),(lat1,lon1),...]
     srs[1,2] - text string, specifying projection (srs1 - from, srs2 - to)
     """
+
+    srs1 = proj_alias.get(srs1,srs1)
+    srs2 = proj_alias.get(srs2,srs2)
     if srs1 == srs2:
       return line
-    
+    if (srs1,srs2) in pure_python_transformers:
+      func = pure_python_transformers[(srs1,srs2)]
+     # print "pure"
+    else:
+
+      func = pyproj.transform
     line = list(line)
     serial = False
     if (type(line[0]) is not tuple) and (type(line[0]) is not list):
@@ -161,14 +185,35 @@ def transform (line, srs1, srs2):
          l1.append([a,b])
       line = l1
     ans = []
+    pr1 = projs[srs1]["proj"]
+    pr2 = projs[srs2]["proj"]
     for point in line:
-      p = pyproj.transform(projs[proj_alias.get(srs1,srs1)]["proj"], projs[proj_alias.get(srs2,srs2)]["proj"], point[0], point[1])
+      p = func(pr1, pr2, point[0], point[1])
       if serial:
          ans.append(p[0])
          ans.append(p[1])
       else:
          ans.append(p)
     return ans
+    
+
 
 if __name__ == "__main__":
+  import kothic.debug as debug
+  print _c4326t3857(1,2,27.6,53.2)
+  print from4326((27.6,53.2),"EPSG:3857")
+  a = debug.Timer("Pure python 4326>3857")
+  for i in range (0,100000):
+    t = _c4326t3857(1,2,27.6,53.2)
+  a.stop()
+  a = debug.Timer("TWMS wrapped 4326>3857")
+  for i in range (0,100000):
+    t = from4326((27.6,53.2),"EPSG:3857")
+  a.stop()
+  a = debug.Timer("Pyproj unwrapped 4326>3857")
+  pr2 = projs["EPSG:3857"]["proj"]
+  pr1 = projs["EPSG:4326"]["proj"]
+  for i in range (0,100000):
+    t = pyproj.transform(pr1,pr2, 27.6, 53.2)
+  a.stop()
   pass
