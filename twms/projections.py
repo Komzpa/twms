@@ -34,6 +34,10 @@ projs = {
                   "proj": pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),
                   "bounds": (-180.0,-90.0,180.0,90.0),
                 },
+    "NASA:4326":{
+                  "proj": pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),
+                  "bounds": (-180.0,-166.0,332.0,346.0),
+                },
     "EPSG:3395":{
                   "proj": pyproj.Proj("+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
                   "bounds": (-180.0,-85.0840591556,180.0,85.0840590501),
@@ -82,16 +86,26 @@ proj_alias = {
 
 def _c4326t3857(t1,t2,lon,lat):
   """
-  Pure python 3857 -> 4326 transform. About 8x faster than pyproj.
+  Pure python 4326 -> 3857 transform. About 8x faster than pyproj.
   """
   lat_rad = math.radians(lat)
   xtile = lon * 20037508.342789244 / 180
   ytile = math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad)))/math.pi * 20037508.342789244
   return(xtile, ytile)
 
-  
+
+def _c3857t4326(t1,t2,lon,lat):
+  """
+  Pure python 3857 -> 4326 transform. About 12x faster than pyproj.
+  """
+  #lat_rad = math.radians(lat)
+  xtile = lon / 20037508.342789244 * 180
+  ytile = math.degrees(math.asin(math.tanh(lat/20037508.342789244*math.pi)))
+  return(xtile, ytile)
+
 pure_python_transformers = {
   ("EPSG:4326", "EPSG:3857"): _c4326t3857,
+  ("EPSG:3857", "EPSG:4326"): _c3857t4326,
   }
 
 
@@ -199,21 +213,42 @@ def transform (line, srs1, srs2):
 
 
 if __name__ == "__main__":
-  import kothic.debug as debug
+  import  debug
   print _c4326t3857(1,2,27.6,53.2)
   print from4326((27.6,53.2),"EPSG:3857")
+  a = _c4326t3857(1,2,27.6,53.2)
+  print to4326(a,"EPSG:3857")
+  print _c3857t4326(1,2,a[0],a[1])
+  
+  
+  a = debug.Timer("Pure python 4326<3857")
+  for i in xrange (0,100000):
+    t = _c3857t4326(1,2,3072417.9458943508, 7020078.5326420991)
+  a.stop()
+  a = debug.Timer("TWMS wrapped 4326<3857")
+  for i in xrange (0,100000):
+    t = to4326((3072417.9458943508, 7020078.5326420991),"EPSG:3857")
+  a.stop()
+  a = debug.Timer("Pyproj unwrapped 4326<3857")
+  pr1 = projs["EPSG:3857"]["proj"]
+  pr2 = projs["EPSG:4326"]["proj"]
+  for i in xrange (0,100000):
+    t = pyproj.transform(pr1,pr2, 3072417.9458943508, 7020078.5326420991)
+  a.stop()
+
+  
   a = debug.Timer("Pure python 4326>3857")
-  for i in range (0,100000):
+  for i in xrange (0,100000):
     t = _c4326t3857(1,2,27.6,53.2)
   a.stop()
   a = debug.Timer("TWMS wrapped 4326>3857")
-  for i in range (0,100000):
+  for i in xrange (0,100000):
     t = from4326((27.6,53.2),"EPSG:3857")
   a.stop()
   a = debug.Timer("Pyproj unwrapped 4326>3857")
   pr2 = projs["EPSG:3857"]["proj"]
   pr1 = projs["EPSG:4326"]["proj"]
-  for i in range (0,100000):
+  for i in xrange (0,100000):
     t = pyproj.transform(pr1,pr2, 27.6, 53.2)
   a.stop()
   pass
