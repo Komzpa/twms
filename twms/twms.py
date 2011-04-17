@@ -204,14 +204,18 @@ def twms_main(req):
 
      if "empty_color" in config.layers[ll]:
       ec = ImageColor.getcolor(config.layers[ll]["empty_color"], "RGBA")
-
+      sec = set(ec)
+      if "empty_color_delta" in config.layers[ll]:
+        delta = config.layers[ll]["empty_color_delta"]
+        for tr in range(-delta, delta):
+          for tg in range(-delta, delta):
+            for tb in range(-delta, delta):
+              sec.add((ec[0]+tr,ec[1]+tg,ec[2]+tb,ec[3]))
       i2l = im2.load()
       for x in range(0,im2.size[0]):
         for y in range(0,im2.size[1]):
           t = i2l[x,y]
-
-
-          if ec == t:
+          if t in sec:
             i2l[x,y] = (t[0],t[1],t[2],0)
      if not im2.size == result_img.size:
          im2 = im2.resize(result_img.size, Image.ANTIALIAS)
