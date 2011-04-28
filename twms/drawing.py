@@ -71,7 +71,7 @@ def render_vector(geometry, img, bbox, coords, srs, color=None, renderer=None):
     coords = projections.from4326(coords, srs)
     W,H = img.size
     prevcoord = False
-    coords = [(int((coord[0]-lo1)*(W-1)/abs(lo2-lo1)), int((la2-coord[1])*(H-1)/(la2-la1))) for coord in coords]
+    coords = [((coord[0]-lo1)*(W-1)/abs(lo2-lo1), (la2-coord[1])*(H-1)/(la2-la1)) for coord in coords]
 
     if renderer == "cairo" and HAVE_CAIRO:
       "rendering as cairo"
@@ -93,9 +93,10 @@ def render_vector(geometry, img, bbox, coords, srs, color=None, renderer=None):
         cr.arc(coords[0][0],coords[0][1],6,0,2*math.pi)
         cr.fill()
       img = Image.frombuffer("RGBA",( W,H ),surface.get_data(),"raw","RGBA",0,1)
-
+    
     else:
       "falling back to PIL"
+      coord = [(int(coord[0]),int(coord[1])) for coord in coords]                 # PIL dislikes subpixels
       draw = ImageDraw.Draw(img)
       if geometry == "LINESTRING":
         draw.line (coords, fill=color, width=3)
