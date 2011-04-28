@@ -24,6 +24,7 @@ import urllib
 import StringIO
 import time
 import datetime
+
 sys.path.append(os.path.join(os.path.realpath(sys.path[0]), "twms"))
 config_path = "/etc/twms/twms.conf"
 if os.path.exists(config_path):
@@ -32,7 +33,7 @@ else:
   config = imp.load_source("config", os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
   sys.stderr.write( os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
   sys.stderr.flush()
-
+import fetchers
 
 import correctify
 import capabilities

@@ -27,9 +27,35 @@ import config
 import projections
 
 
-def WMS (z, x, y, this_layer):
+fetching_now = {}
+thread_responses = {}
+zhash_lock = {}
 
-   
+def fetch(z, x, y, this_layer):
+  fun = this_layer["fetcher"]
+  zhash = repr((z,x,y,this_layer))
+  try:
+    zhash_lock[zhash] += 1
+  except KeyError:
+    zhash_lock[zhash] = 1
+  if zhash not in fetching_now:
+    atomthread = threading.Thread(None, threadwrapper, None, (z, x, y, this_layer, zhash))
+    atomthread.start()
+    fetching_now[zhash] = atomthread
+  if fetching_now[zhash].is_alive():
+    fetching_now[zhash].join()
+  resp = thread_responses[zhash]
+  zhash_lock[zhash] -= 1
+  if not zhash_lock[zhash]:
+    del thread_responses[zhash]
+    del fetching_now[zhash]
+    del zhash_lock[zhash]
+  return resp
+
+def threadwrapper(z,x,y,this_layer, zhash):
+  thread_responses[zhash] = this_layer["fetcher"](z,x,y,this_layer)
+
+def WMS (z, x, y, this_layer):
    if "max_zoom" in this_layer:
     if z >= this_layer["max_zoom"]:
       return None   
@@ -100,13 +126,16 @@ def Tile (z, x, y, this_layer):
      open(local+ this_layer["ext"], "wb").write(contents)
    
    if "dead_tile" in this_layer:
-    dt = open(this_layer["dead_tile"],"rb").read()
-    if contents == dt:
-      if this_layer.get("cached", True):
-        tne = open (local+"tne", "wb")
-        when = time.localtime()
-        tne.write("%02d.%02d.%04d %02d:%02d:%02d"%(when[2],when[1],when[0],when[3],when[4],when[5]))
-        tne.close()
-        os.remove(local+ this_layer["ext"])
+    try:
+      dt = open(this_layer["dead_tile"],"rb").read()
+      if contents == dt:
+        if this_layer.get("cached", True):
+          tne = open (local+"tne", "wb")
+          when = time.localtime()
+          tne.write("%02d.%02d.%04d %02d:%02d:%02d"%(when[2],when[1],when[0],when[3],when[4],when[5]))
+          tne.close()
+          os.remove(local+ this_layer["ext"])
       return False
+    except IOError:
+      pass
    return im
