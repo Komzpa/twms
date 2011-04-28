@@ -13,13 +13,22 @@
 
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
-import Image, ImageDraw
+import Image, ImageDraw, ImageColor
 import urllib
 import os, sys
+import array
 
 import projections
 import config
 from gpxparse import GPXParser
+import math
+
+
+HAVE_CAIRO = True
+try:
+  import cairo
+except ImportError:
+  HAVE_CAIRO = False
 
 def wkt(wkt, img, bbox, srs):
     """
@@ -33,7 +42,6 @@ def wkt(wkt, img, bbox, srs):
        coords = coords.replace(")","")
        coords = coords.split(",")
        coords = [ [float(t) for t in x.split(" ")] for x in coords]
-       #coords = [(x[1],x[0]) for x in coords]
        canvas = render_vector(name, canvas, bbox, coords, srs)
        img = Image.blend(img, canvas, 0.5)
     return img
@@ -42,41 +50,57 @@ def gpx(track, img, bbox, srs):
     """
     Simple GPX renderer
     """
-
-
-
     for i in track.tracks.keys():
       coords = track.getTrack(i)
-      #print >> sys.stderr, coords, "!!!!!!"
-      #sys.stderr.flush()
-      
       canvas = img.copy()
       canvas = render_vector("LINESTRING", canvas, bbox, coords, srs)
       img = Image.blend(img, canvas, 0.5)
     return img
 
 
-def render_vector(geometry, img, bbox, coords, srs, color=None):
+def render_vector(geometry, img, bbox, coords, srs, color=None, renderer=None):
     """
     Renders a vector geometry on image.
     """
     if not color:
       color = config.geometry_color[geometry]
-    draw = ImageDraw.Draw(img)
+    if not renderer:
+      renderer = config.default_vector_renderer
     bbox = projections.from4326(bbox, srs)
     lo1, la1, lo2, la2 = bbox
-    
     coords = projections.from4326(coords, srs)
     W,H = img.size
     prevcoord = False
     coords = [(int((coord[0]-lo1)*(W-1)/abs(lo2-lo1)), int((la2-coord[1])*(H-1)/(la2-la1))) for coord in coords]
 
-    if geometry == "LINESTRING":
-       draw.line (coords, fill=color, width=3)
+    if renderer == "cairo" and HAVE_CAIRO:
+      "rendering as cairo"
+      imgd = img.tostring()
+      a = array.array('B',imgd)
+      surface = cairo.ImageSurface.create_for_data (a, cairo.FORMAT_ARGB32, W, H, W*4)
+      cr = cairo.Context(surface)
+      cr.move_to(*coords[0])
+      color = ImageColor.getrgb(color)
+      cr.set_source_rgba(color[2], color[1], color[0], 1)
+      if geometry == "LINESTRING" or geometry == "POLYGON":
+        for k in coords:
+          cr.line_to(*k)
+      if geometry == "LINESTRING":
+        cr.stroke()
+      elif geometry == "POLYGON":
+        cr.fill()
+      elif geometry == "POINT":
+        cr.arc(coords[0][0],coords[0][1],6,0,2*math.pi)
+        cr.fill()
+      img = Image.frombuffer("RGBA",( W,H ),surface.get_data(),"raw","RGBA",0,1)
 
-
-    elif geometry == "POINT":
-       draw.ellipse((coords[0][0]-3,coords[0][1]-3,coords[0][0]+3,coords[0][1]+3),fill=color,outline=color)
-    elif geometry == "POLYGON":
-       draw.polygon(coords, fill=color, outline=color)
+    else:
+      "falling back to PIL"
+      draw = ImageDraw.Draw(img)
+      if geometry == "LINESTRING":
+        draw.line (coords, fill=color, width=3)
+      elif geometry == "POINT":
+        draw.ellipse((coords[0][0]-3,coords[0][1]-3,coords[0][0]+3,coords[0][1]+3),fill=color,outline=color)
+      elif geometry == "POLYGON":
+        draw.polygon(coords, fill=color, outline=color)
     return img
