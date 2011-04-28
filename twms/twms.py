@@ -53,7 +53,6 @@ except ImportError:
         pass
 
 
-       
 
 
 OK = 200
@@ -90,6 +89,8 @@ def twms_main(req):
       req_bbox = projections.from4326((27.6518898,53.8683186,27.6581944,53.8720359), srs)
     else:
       local_gpx = config.gpx_cache + "%s.gpx" % gpx
+      if not os.path.exists (config.gpx_cache):
+        os.makedirs(config.gpx_cache)
       if not os.path.exists (local_gpx):
           urllib.urlretrieve ("http://www.openstreetmap.org/trace/%s/data" % gpx, local_gpx)
       track = GPXParser(local_gpx)
