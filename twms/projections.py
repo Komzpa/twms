@@ -89,7 +89,7 @@ def _c4326t3857(t1,t2,lon,lat):
   Pure python 4326 -> 3857 transform. About 8x faster than pyproj.
   """
   lat_rad = math.radians(lat)
-  xtile = lon * 20037508.342789244 / 180
+  xtile = lon * 111319.49079327358
   ytile = math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad)))/math.pi * 20037508.342789244
   return(xtile, ytile)
 
@@ -98,14 +98,56 @@ def _c3857t4326(t1,t2,lon,lat):
   """
   Pure python 3857 -> 4326 transform. About 12x faster than pyproj.
   """
-  #lat_rad = math.radians(lat)
-  xtile = lon / 20037508.342789244 * 180
+  xtile = lon / 111319.49079327358
   ytile = math.degrees(math.asin(math.tanh(lat/20037508.342789244*math.pi)))
   return(xtile, ytile)
+
+def _c4326t3395(t1,t2,lon,lat):
+  """
+  Pure python 4326 -> 3395 transform. About 8x faster than pyproj.
+  """
+  E = 0.0818191908426
+  A = 20037508.342789
+  F = 53.5865938
+  tmp=math.tan(0.78539816339744830962+math.radians(lat)/2.0)
+  pow_tmp = math.pow(math.tan(0.78539816339744830962+math.asin(E*math.sin(math.radians(lat)))/2.0),E)
+  x = lon * 111319.49079327358
+  y = 6378137.0 * math.log (tmp / pow_tmp)
+  return (x,y)
+
+def _c3395t4326(t1,t2,lon,lat):
+  """
+  Pure python 4326 -> 3395 transform. About 3x faster than pyproj.
+  """
+  r_major = 6378137.000
+  temp = 6356752.3142/6378137.000
+  es = 1.0 - (temp*temp);
+  eccent = math.sqrt(es);
+  ts = math.exp(-lat/r_major);
+  HALFPI = 1.5707963267948966;
+  eccnth = 0.5*eccent;
+  Phi = HALFPI - 2.0*math.atan(ts);
+  N_ITER = 15;
+  TOL = 1e-7;
+  i = N_ITER;
+  dphi = 0.1;
+  while ((abs(dphi) > TOL) and (i > 0)):
+    i -= 1
+    con = eccent*math.sin(Phi)
+    dphi = HALFPI - 2.0*math.atan(ts*math.pow((1.0 - con)/(1.0 + con), eccnth)) - Phi
+    Phi += dphi
+
+  x = lon / 111319.49079327358
+  return (x,math.degrees(Phi))
+
+
+
 
 pure_python_transformers = {
   ("EPSG:4326", "EPSG:3857"): _c4326t3857,
   ("EPSG:3857", "EPSG:4326"): _c3857t4326,
+  ("EPSG:4326", "EPSG:3395"): _c4326t3395,
+  ("EPSG:3395", "EPSG:4326"): _c3395t4326,
   }
 
 
@@ -219,6 +261,12 @@ if __name__ == "__main__":
   a = _c4326t3857(1,2,27.6,53.2)
   print to4326(a,"EPSG:3857")
   print _c3857t4326(1,2,a[0],a[1])
+  print "3395:"
+  print _c4326t3395(1,2,27.6,53.2)
+  print from4326((27.6,53.2),"EPSG:3395")
+  a = _c4326t3395(1,2,27.6,53.2)
+  print to4326(a,"EPSG:3395")
+  print _c3395t4326(1,2,a[0],a[1])
   
   
   a = debug.Timer("Pure python 4326<3857")
@@ -236,6 +284,28 @@ if __name__ == "__main__":
     t = pyproj.transform(pr1,pr2, 3072417.9458943508, 7020078.5326420991)
   a.stop()
 
+
+
+  a = debug.Timer("Pure python 4326<3395")
+  for i in xrange (0,100000):
+    t = _c3395t4326(1,2,3072417.9458943508, 7020078.5326420991)
+  a.stop()
+  a = debug.Timer("TWMS wrapped 4326<3395")
+  for i in xrange (0,100000):
+    t = to4326((3072417.9458943508, 7020078.5326420991),"EPSG:3395")
+  a.stop()
+  a = debug.Timer("Pyproj unwrapped 4326<3395")
+  pr1 = projs["EPSG:3395"]["proj"]
+  pr2 = projs["EPSG:4326"]["proj"]
+  for i in xrange (0,100000):
+    t = pyproj.transform(pr1,pr2, 3072417.9458943508, 7020078.5326420991)
+  a.stop()
+
+
+
+
+
+
   
   a = debug.Timer("Pure python 4326>3857")
   for i in xrange (0,100000):
@@ -247,8 +317,30 @@ if __name__ == "__main__":
   a.stop()
   a = debug.Timer("Pyproj unwrapped 4326>3857")
   pr2 = projs["EPSG:3857"]["proj"]
+
   pr1 = projs["EPSG:4326"]["proj"]
   for i in xrange (0,100000):
     t = pyproj.transform(pr1,pr2, 27.6, 53.2)
   a.stop()
+
+
+
+
+  
+  a = debug.Timer("Pure python 4326>3395")
+  for i in xrange (0,100000):
+    t = _c4326t3395(1,2,27.6,53.2)
+  a.stop()
+  a = debug.Timer("TWMS wrapped 4326>3395")
+  for i in xrange (0,100000):
+    t = from4326((27.6,53.2),"EPSG:3395")
+  a.stop()
+  a = debug.Timer("Pyproj unwrapped 4326>3395")
+  pr2 = projs["EPSG:3395"]["proj"]
+  pr1 = projs["EPSG:4326"]["proj"]
+  for i in xrange (0,100000):
+    t = pyproj.transform(pr1,pr2, 27.6, 53.2)
+  a.stop()
+
+
   pass
