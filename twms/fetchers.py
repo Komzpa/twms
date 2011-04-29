@@ -110,7 +110,6 @@ def Tile (z, x, y, this_layer):
         os.mkdir(local+"lock")
     except OSError:
       return None
-   
    try:
      contents = urllib2.urlopen(remote).read()
      im = Image.open(StringIO.StringIO(contents))  
@@ -121,7 +120,6 @@ def Tile (z, x, y, this_layer):
    if this_layer.get("cached", True):
      os.rmdir(local+"lock")
      open(local+ this_layer["ext"], "wb").write(contents)
-   
    if "dead_tile" in this_layer:
     try:
       dt = open(this_layer["dead_tile"],"rb").read()
