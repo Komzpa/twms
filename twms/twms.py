@@ -24,7 +24,6 @@ import urllib
 import StringIO
 import time
 import datetime
-
 sys.path.append(os.path.join(os.path.realpath(sys.path[0]), "twms"))
 config_path = "/etc/twms/twms.conf"
 if os.path.exists(config_path):
@@ -33,10 +32,11 @@ else:
   config = imp.load_source("config", os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
   sys.stderr.write( os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
   sys.stderr.flush()
-import fetchers
+
 
 import correctify
 import capabilities
+import fetchers
 #import config
 import bbox
 import bbox as bbox_utils
@@ -271,7 +271,6 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
      return None
    if not bbox.bbox_is_in(projections.bbox_by_tile(z,x,y,layer["proj"]), layer.get("data_bounding_box",config.default_bbox), fully=False):
      return None
-     
    global cached_objs, cached_hist_list
    if "prefix" in layer:
      if (layer["prefix"], z, x, y) in cached_objs:
@@ -331,13 +330,11 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
                 im.is_ok = True
                 return im
       if not again:
-
         if "fetch" in layer:
           delta = (datetime.datetime.now() - start_time)
           delta = delta.seconds + delta.microseconds/1000000.
           if (config.deadline > delta) or (z < 4):
-
-            im = layer["fetch"](z,x,y,layer)    # Try fetching from outside
+            im = fetchers.fetch(z,x,y,layer)    # Try fetching from outside
             if im:
               im.is_ok = True
               return im
@@ -353,8 +350,7 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
           delta = (datetime.datetime.now() - start_time)
           delta = delta.seconds + delta.microseconds/1000000.
           if (config.deadline > delta) or (z < 4):
-
-            im = layer["fetch"](z,x,y,layer)    # Try fetching from outside
+            im = fetchers.fetch(z,x,y,layer)    # Try fetching from outside
             if im:
               im.is_ok = True
               return im
@@ -450,5 +446,5 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
    elif (W != out.size[0]) or (H != out.size[1]):
      "just resize"
      out = out.resize((W,H), Image.ANTIALIAS)
-   #out = reproject(out, bbox, layer["proj"], request_proj)
+  # out = reproject(out, bbox, layer["proj"], request_proj)
    return out

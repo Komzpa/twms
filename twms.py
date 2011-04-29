@@ -28,6 +28,7 @@ except ImportError:
 OK = 200
 ERROR = 500
 
+
 def handler():
     """
     A handler for web.py.

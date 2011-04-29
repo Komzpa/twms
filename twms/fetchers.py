@@ -25,6 +25,7 @@ import Image
 
 import config
 import projections
+import threading
 
 
 fetching_now = {}
@@ -32,7 +33,6 @@ thread_responses = {}
 zhash_lock = {}
 
 def fetch(z, x, y, this_layer):
-  fun = this_layer["fetcher"]
   zhash = repr((z,x,y,this_layer))
   try:
     zhash_lock[zhash] += 1
@@ -53,7 +53,7 @@ def fetch(z, x, y, this_layer):
   return resp
 
 def threadwrapper(z,x,y,this_layer, zhash):
-  thread_responses[zhash] = this_layer["fetcher"](z,x,y,this_layer)
+  thread_responses[zhash] = this_layer["fetch"](z,x,y,this_layer)
 
 def WMS (z, x, y, this_layer):
    if "max_zoom" in this_layer:
@@ -89,15 +89,12 @@ def WMS (z, x, y, this_layer):
        tne.write("%02d.%02d.%04d %02d:%02d:%02d"%(when[2],when[1],when[0],when[3],when[4],when[5]))
        tne.close()
        return False
-   
     im.save(local+this_layer["ext"])
     os.rmdir(local+"lock")
    return im
    
 def Tile (z, x, y, this_layer):
-
    d_tuple = z,x,y
-   
    if "max_zoom" in this_layer:
     if z >= this_layer["max_zoom"]:
       return None
