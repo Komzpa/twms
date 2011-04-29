@@ -17,6 +17,7 @@
 
 import ImageFilter
 import ImageEnhance
+import ImageOps
 
 def raster(result_img, filt):
     """
@@ -36,6 +37,15 @@ def raster(result_img, filt):
         result_img = result_img.filter(ImageFilter.BLUR)
       if ff == "edge":
         result_img = result_img.filter(ImageFilter.EDGE_ENHANCE)
+      if ff == "equalize":
+        result_img = result_img.convert("RGB")
+        result_img = ImageOps.equalize(result_img)
+        result_img = result_img.convert("RGBA")
+      if ff == "autocontrast":
+        result_img = result_img.convert("RGB")
+        result_img = ImageOps.autocontrast(result_img)
+        result_img = result_img.convert("RGBA")
+
      else:
       ff, tt = ff.split(":")
       tt = float(tt)
@@ -48,6 +58,10 @@ def raster(result_img, filt):
       if ff == "sharpness":
         enhancer = ImageEnhance.Sharpness(result_img)
         result_img = enhancer.enhance(tt)
+      if ff == "autocontrast":
+        result_img = result_img.convert("RGB")
+        result_img = ImageOps.autocontrast(result_img, tt)
+        result_img = result_img.convert("RGBA")
     return result_img
 
 
