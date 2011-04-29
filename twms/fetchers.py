@@ -22,6 +22,7 @@ import math
 import sys
 import StringIO
 import Image
+import time
 
 import config
 import projections
@@ -73,9 +74,16 @@ def WMS (z, x, y, this_layer):
     if not os.path.exists("/".join(local.split("/")[:-1])):
         os.makedirs("/".join(local.split("/")[:-1]))
     try:
-       os.mkdir(local+"lock")
+      os.mkdir(local+"lock")
     except OSError:
-        return None
+      for i in range(20):
+        time.sleep(0.1)
+        try:
+          if not os.path.exists(local+"lock"):
+            im = Image.open(local + this_layer["ext"])
+            return im
+        except IOError, OSError:
+          return None
    im = Image.open(StringIO.StringIO(urllib2.urlopen(wms).read()))
    if width is not 256 and height is not 256:
     im = im.resize((256,256),Image.ANTIALIAS)
@@ -105,11 +113,18 @@ def Tile (z, x, y, this_layer):
    if this_layer.get("cached", True):
     local = config.tiles_cache + this_layer["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
     if not os.path.exists("/".join(local.split("/")[:-1])):
-       os.makedirs("/".join(local.split("/")[:-1]))
+      os.makedirs("/".join(local.split("/")[:-1]))
     try:
-        os.mkdir(local+"lock")
+      os.mkdir(local+"lock")
     except OSError:
-      return None
+      for i in range(20):
+        time.sleep(0.1)
+        try:
+          if not os.path.exists(local+"lock"):
+            im = Image.open(local + this_layer["ext"])
+            return im
+        except IOError, OSError:
+          return None
    try:
      contents = urllib2.urlopen(remote).read()
      im = Image.open(StringIO.StringIO(contents))  
@@ -125,11 +140,11 @@ def Tile (z, x, y, this_layer):
       dt = open(this_layer["dead_tile"],"rb").read()
       if contents == dt:
         if this_layer.get("cached", True):
-          tne = open (local+"tne", "wb")
+          tne = open (local + "tne", "wb")
           when = time.localtime()
           tne.write("%02d.%02d.%04d %02d:%02d:%02d"%(when[2],when[1],when[0],when[3],when[4],when[5]))
           tne.close()
-          os.remove(local+ this_layer["ext"])
+          os.remove(local + this_layer["ext"])
       return False
     except IOError:
       pass
