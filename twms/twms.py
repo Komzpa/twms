@@ -417,6 +417,8 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
 
 
      out.paste(im1,((x - from_tile_x)*256, (-to_tile_y + y )*256,))
+   if "filter" in layer:
+     out = filter.raster(out, layer["filter"])
 
    ## TODO: Here's a room for improvement. we could drop this crop in case user doesn't need it.
    out = out.crop(bbox_im)
