@@ -23,6 +23,7 @@ import sys
 import StringIO
 import Image
 import time
+from exceptions import OSError, IOError
 
 import config
 import projections
@@ -54,7 +55,17 @@ def fetch(z, x, y, this_layer):
   return resp
 
 def threadwrapper(z,x,y,this_layer, zhash):
-  thread_responses[zhash] = this_layer["fetch"](z,x,y,this_layer)
+  try:
+    thread_responses[zhash] = this_layer["fetch"](z,x,y,this_layer)
+  except OSError:
+    for i in range(20):
+      time.sleep(0.1)
+      try:
+        thread_responses[zhash] = this_layer["fetch"](z,x,y,this_layer)
+        return
+      except OSError:
+        continue
+    thread_responses[zhash] = None
 
 def WMS (z, x, y, this_layer):
    if "max_zoom" in this_layer:
@@ -68,8 +79,6 @@ def WMS (z, x, y, this_layer):
    tile_bbox = "bbox=%s,%s,%s,%s" % tuple( projections.from4326(projections.bbox_by_tile(z,x,y,req_proj),req_proj))
 
    wms += tile_bbox + "&width=%s&height=%s&srs=%s"%(width, height, req_proj)
-   print >> sys.stderr, wms
-   sys.stderr.flush()
    if this_layer.get("cached", True):
     if not os.path.exists("/".join(local.split("/")[:-1])):
         os.makedirs("/".join(local.split("/")[:-1]))
@@ -102,6 +111,7 @@ def WMS (z, x, y, this_layer):
    return im
    
 def Tile (z, x, y, this_layer):
+   global OSError, IOError
    d_tuple = z,x,y
    if "max_zoom" in this_layer:
     if z >= this_layer["max_zoom"]:
