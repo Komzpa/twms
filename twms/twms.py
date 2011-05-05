@@ -42,7 +42,6 @@ import bbox
 import bbox as bbox_utils
 import projections
 import drawing
-import filter
 import overview
 from gpxparse import GPXParser
 from reproject import reproject
@@ -61,8 +60,6 @@ ERROR = 500
 
 cached_objs = {}        # a dict. (layer, z, x, y): PIL image
 cached_hist_list = []
-
-
 
 
 def twms_main(req):
@@ -230,7 +227,7 @@ def twms_main(req):
      imgs += 1.
 
     ##Applying filters
-    result_img = filter.raster(result_img, filt)
+    result_img = filter.raster(result_img, filt, req_bbox, srs)
 
     print >> sys.stderr, wkt
     sys.stderr.flush()
@@ -418,7 +415,7 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
 
      out.paste(im1,((x - from_tile_x)*256, (-to_tile_y + y )*256,))
    if "filter" in layer:
-     out = filter.raster(out, layer["filter"])
+     out = filter.raster(out, layer["filter"], orig_bbox, request_proj)
 
    ## TODO: Here's a room for improvement. we could drop this crop in case user doesn't need it.
    out = out.crop(bbox_im)
@@ -450,3 +447,7 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
      out = out.resize((W,H), Image.ANTIALIAS)
   # out = reproject(out, bbox, layer["proj"], request_proj)
    return out
+
+
+
+import filter

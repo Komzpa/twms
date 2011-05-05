@@ -14,12 +14,26 @@
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
-
+import Image
 import ImageFilter
 import ImageEnhance
 import ImageOps
+try:
+  import numpy
+  NUMPY_AVAILABLE = True
+except ImportError:
+  NUMPY_AVAILABLE = False
+import datetime
+from twms import getimg
 
-def raster(result_img, filt):
+try:
+  import config
+
+except:
+  pass
+
+
+def raster(result_img, filt, bbox = (-999,-999,999,9999), srs="EPSG:3857"):
     """
     Applies various filters to image.
     """
@@ -47,8 +61,12 @@ def raster(result_img, filt):
         result_img = result_img.convert("RGBA")
 
      else:
-      ff, tt = ff.split(":")
-      tt = float(tt)
+      ff, tts = ff.split(":")
+      try:
+        tt = float(tts)
+      except:
+        tt = 1
+        pass
       if ff == "brightness":
         enhancer = ImageEnhance.Brightness(result_img)
         result_img = enhancer.enhance(tt)
@@ -61,6 +79,25 @@ def raster(result_img, filt):
       if ff == "autocontrast":
         result_img = result_img.convert("RGB")
         result_img = ImageOps.autocontrast(result_img, tt)
+        result_img = result_img.convert("RGBA")
+      if ff == "fusion" and NUMPY_AVAILABLE:
+        pix = numpy.array(result_img,dtype=int)
+        a,b = result_img.size
+        pan_img = getimg (bbox, srs, [b, a], config.layers[tts], datetime.datetime.now(), [])
+        pan_img = pan_img.convert("L")
+        print pix.dtype
+        print pix[...,1].shape
+        
+        pan = numpy.array(pan_img)
+        
+        pix[...,0] = pix[...,0]*pan/(pix[...,0] + pix[...,1] + pix[...,2])
+        pix[...,1] = pix[...,1]*pan/(pix[...,0] + pix[...,1] + pix[...,2])
+        pix[...,2] = pix[...,2]*pan/(pix[...,0] + pix[...,1] + pix[...,2])
+
+        print pix.shape
+        result_img = Image.fromarray(numpy.uint8(pix))
+        
+        
         result_img = result_img.convert("RGBA")
     return result_img
 
