@@ -59,6 +59,9 @@ def raster(result_img, filt, bbox = (-999,-999,999,9999), srs="EPSG:3857"):
         result_img = result_img.convert("RGB")
         result_img = ImageOps.autocontrast(result_img)
         result_img = result_img.convert("RGBA")
+      if ff == "swaprb":
+        ii = result_img.split()
+        result_img = Image.merge("RGBA", (ii[2],ii[1],ii[0],ii[3]))
 
      else:
       ff, tts = ff.split(":")
@@ -81,7 +84,7 @@ def raster(result_img, filt, bbox = (-999,-999,999,9999), srs="EPSG:3857"):
         result_img = ImageOps.autocontrast(result_img, tt)
         result_img = result_img.convert("RGBA")
       if ff == "fusion" and NUMPY_AVAILABLE:
-        pix = numpy.array(result_img,dtype=int)
+        pix = numpy.array(result_img, dtype=int)
         a,b = result_img.size
         pan_img = getimg (bbox, srs, [b, a], config.layers[tts], datetime.datetime.now(), [])
         pan_img = pan_img.convert("L")
