@@ -119,8 +119,8 @@ def twms_main(req):
        return (OK, content_type, resp)
 
 
-    force = data.get("force","").split(",")
-    filt = data.get ("filter","").split(",")
+    force = tuple(data.get("force","").split(","))
+    filt  = tuple(data.get("filter","").split(","))
     if layer == [""] :
       content_type = "text/html"
       resp = overview.html(ref)
@@ -133,6 +133,7 @@ def twms_main(req):
 
     width=0
     height=0
+    resp_cache_path, resp_ext = "",""
     if req_type == "GetTile":
       width=256
       height=256
@@ -142,6 +143,16 @@ def twms_main(req):
       x = int(data.get("x",data.get("X",0)))
       y = int(data.get("y",data.get("Y",0)))
       z = int(data.get("z",data.get("Z",1))) + 1
+      if "cache_tile_responses" in dir(config) and not wkt and not gpx:
+        #print >> sys.stderr, (srs, tuple(layer), filt, width, height, force, format)
+        #print >> sys.stderr, config.cache_tile_responses
+        #sys.stderr.flush()
+        if (srs, tuple(layer), filt, width, height, force, format) in config.cache_tile_responses:
+          
+          resp_cache_path, resp_ext = config.cache_tile_responses[(srs, tuple(layer), filt, width, height, force, format)]
+          resp_cache_path = resp_cache_path+"/%s/%s/%s.%s"%(z-1,x,y,resp_ext)
+          if os.path.exists(resp_cache_path):
+            return (OK, content_type, open(resp_cache_path, "r").read())
       if len(layer) == 1:
        if layer[0] in config.layers:
         if config.layers[layer[0]]["proj"] == srs and width is 256 and height is 256 and not filt and not force and not correctify.has_corrections(layer[0]):
@@ -209,7 +220,8 @@ def twms_main(req):
         for tr in range(-delta, delta):
           for tg in range(-delta, delta):
             for tb in range(-delta, delta):
-              sec.add((ec[0]+tr,ec[1]+tg,ec[2]+tb,ec[3]))
+              if (ec[0]+tr) >= 0  and (ec[0]+tr) < 256 and (ec[1]+tr) >= 0  and (ec[1]+tr) < 256 and(ec[2]+tr) >= 0  and (ec[2]+tr) < 256:
+                sec.add((ec[0]+tr,ec[1]+tg,ec[2]+tb,ec[3]))
       i2l = im2.load()
       for x in range(0,im2.size[0]):
         for y in range(0,im2.size[1]):
@@ -229,8 +241,8 @@ def twms_main(req):
     ##Applying filters
     result_img = filter.raster(result_img, filt, req_bbox, srs)
 
-    print >> sys.stderr, wkt
-    sys.stderr.flush()
+    #print >> sys.stderr, wkt
+    #sys.stderr.flush()
     if wkt:
       result_img = drawing.wkt(wkt, result_img, req_bbox, srs)
     if gpx:
@@ -253,6 +265,20 @@ def twms_main(req):
        result_img = result_img.convert("RGB")
        result_img.save(image_content, formats[format], quality=config.output_quality, progressive=config.output_progressive)
     resp = image_content.getvalue()
+    if resp_cache_path:
+      try:
+        "trying to create local cache directory, if it doesn't exist"
+        os.makedirs("/".join(resp_cache_path.split("/")[:-1]))
+      except OSError:
+         pass
+      try:
+        a = open(resp_cache_path, "w")
+        a.write(resp)
+        a.close()
+      except OSError, IOError:
+        print >> sys.stderr, "error saving response answer to file %s." % (resp_cache_path)
+        sys.stderr.flush()
+        
     return (OK, content_type, resp)
 
 
