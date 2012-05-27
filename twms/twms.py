@@ -275,7 +275,7 @@ def twms_main(req):
         a = open(resp_cache_path, "w")
         a.write(resp)
         a.close()
-      except OSError, IOError:
+      except (OSError, IOError):
         print >> sys.stderr, "error saving response answer to file %s." % (resp_cache_path)
         sys.stderr.flush()
         
