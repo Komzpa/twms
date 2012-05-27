@@ -91,7 +91,7 @@ def WMS (z, x, y, this_layer):
           if not os.path.exists(local+"lock"):
             im = Image.open(local + this_layer["ext"])
             return im
-        except IOError, OSError:
+        except (IOError, OSError):
           return None
    im = Image.open(StringIO.StringIO(urllib2.urlopen(wms).read()))
    if width is not 256 and height is not 256:
@@ -133,7 +133,7 @@ def Tile (z, x, y, this_layer):
           if not os.path.exists(local+"lock"):
             im = Image.open(local + this_layer["ext"])
             return im
-        except IOError, OSError:
+        except (IOError, OSError):
           return None
    try:
      contents = urllib2.urlopen(remote).read()
