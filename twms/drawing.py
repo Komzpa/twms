@@ -54,7 +54,8 @@ def gpx(track, img, bbox, srs, color, blend = 0.5):
     return img
 
 
-def render_vector(geometry, img, bbox, coords, srs, color=None, renderer=None):
+def render_vector(geometry, img, bbox, coords, srs, color=None, renderer=None,
+        linestring_width=None):
     """
     Renders a vector geometry on image.
     """
@@ -62,6 +63,11 @@ def render_vector(geometry, img, bbox, coords, srs, color=None, renderer=None):
       color = config.geometry_color[geometry]
     if not renderer:
       renderer = config.default_vector_renderer
+    if not linestring_width:
+      if 'linestring_width' in dir(config):
+        linestring_width = config.linestring_width
+      else:
+        linestring_width = 3
     bbox = projections.from4326(bbox, srs)
     lo1, la1, lo2, la2 = bbox
     coords = projections.from4326(coords, srs)
@@ -82,6 +88,8 @@ def render_vector(geometry, img, bbox, coords, srs, color=None, renderer=None):
         for k in coords:
           cr.line_to(*k)
       if geometry == "LINESTRING":
+        if linestring_width is not None:
+          cr.set_line_width(linestring_width)
         cr.stroke()
       elif geometry == "POLYGON":
         cr.fill()
@@ -95,7 +103,7 @@ def render_vector(geometry, img, bbox, coords, srs, color=None, renderer=None):
       coord = [(int(coord[0]),int(coord[1])) for coord in coords]                 # PIL dislikes subpixels
       draw = ImageDraw.Draw(img)
       if geometry == "LINESTRING":
-        draw.line (coords, fill=color, width=3)
+        draw.line (coords, fill=color, width=linestring_width)
       elif geometry == "POINT":
         draw.ellipse((coords[0][0]-3,coords[0][1]-3,coords[0][0]+3,coords[0][1]+3),fill=color,outline=color)
       elif geometry == "POLYGON":
