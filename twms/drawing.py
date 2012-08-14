@@ -6,9 +6,9 @@
 # and/or modify it under the terms specified in COPYING.
 
 try:
-    from PIL import Image, ImageDraw, ImageColor
+    from PIL import Image, ImageDraw, ImageColor, ImageFont
 except ImportError:
-    import Image, ImageDraw, ImageColor
+    import Image, ImageDraw, ImageColor, ImageFont
 
 import urllib
 import os, sys
@@ -23,6 +23,8 @@ import math
 HAVE_CAIRO = True
 try:
   import cairo
+  import pango
+  import pangocairo
 except ImportError:
   HAVE_CAIRO = False
 
@@ -36,9 +38,12 @@ def wkt(wkt, img, bbox, srs, color, blend = 0.5):
        canvas = img.copy()
        name, coords = obj.split("(")
        coords = coords.replace(")","")
+       text = ""
+       if name == "TEXT":
+         text, coords = coords.split(",", 1)
        coords = coords.split(",")
        coords = [ [float(t) for t in x.split(" ")] for x in coords]
-       canvas = render_vector(name, canvas, bbox, coords, srs, color)
+       canvas = render_vector(name, canvas, bbox, coords, srs, color, text=text)
        img = Image.blend(img, canvas, blend)
     return img
 
@@ -55,7 +60,7 @@ def gpx(track, img, bbox, srs, color, blend = 0.5):
 
 
 def render_vector(geometry, img, bbox, coords, srs, color=None, renderer=None,
-        linestring_width=None):
+        linestring_width=None, text=None, cairo_font=None, pil_font=None):
     """
     Renders a vector geometry on image.
     """
@@ -68,6 +73,12 @@ def render_vector(geometry, img, bbox, coords, srs, color=None, renderer=None,
         linestring_width = config.linestring_width
       else:
         linestring_width = 3
+    if not cairo_font:
+      if 'cairo_font' in dir(config):
+        cairo_font = config.cairo_font
+    if not pil_font:
+      if 'pil_font' in dir(config):
+        pil_font = config.pil_font
     bbox = projections.from4326(bbox, srs)
     lo1, la1, lo2, la2 = bbox
     coords = projections.from4326(coords, srs)
@@ -96,6 +107,16 @@ def render_vector(geometry, img, bbox, coords, srs, color=None, renderer=None,
       elif geometry == "POINT":
         cr.arc(coords[0][0],coords[0][1],6,0,2*math.pi)
         cr.fill()
+      elif geometry == "TEXT" and text and cairo_font:
+        pcr = pangocairo.CairoContext(cr)
+        pcr.set_antialias(cairo.ANTIALIAS_SUBPIXEL)
+        layout = pcr.create_layout()
+        font = pango.FontDescription(cairo_font)
+        layout.set_font_description(font)
+        layout.set_text(text)
+        pcr.update_layout(layout)
+        pcr.show_layout(layout)
+
       img = Image.frombuffer("RGBA",( W,H ),surface.get_data(),"raw","RGBA",0,1)
     
     else:
@@ -108,4 +129,7 @@ def render_vector(geometry, img, bbox, coords, srs, color=None, renderer=None,
         draw.ellipse((coords[0][0]-3,coords[0][1]-3,coords[0][0]+3,coords[0][1]+3),fill=color,outline=color)
       elif geometry == "POLYGON":
         draw.polygon(coords, fill=color, outline=color)
+      elif geometry == "TEXT" and text and pil_font:
+        font = ImageFont.truetype(pil_font[0], pil_font[1])
+        draw.text(coords[0], text, color, font=font)
     return img
