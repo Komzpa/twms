@@ -24,7 +24,12 @@
 
 
 import projections
-import Image, ImageFilter
+
+try:
+    from PIL import Image, ImageFilter
+except ImportError:
+    import Image, ImageFilter
+
 import urllib2
 import StringIO
 import datetime

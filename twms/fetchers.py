@@ -21,7 +21,11 @@ import os
 import math
 import sys
 import StringIO
-import Image
+try:
+    from PIL import Image
+except ImportError:
+    import Image
+
 import time
 from exceptions import OSError, IOError
 

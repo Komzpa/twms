@@ -15,7 +15,11 @@
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
-from PIL import Image, ImageOps, ImageColor
+try:
+    from PIL import Image, ImageOps, ImageColor
+except ImportError:
+    import Image, ImageOps, ImageColor
+
 import imp
 import os
 import math

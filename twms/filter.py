@@ -14,10 +14,11 @@
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
-import Image
-import ImageFilter
-import ImageEnhance
-import ImageOps
+try:
+    from PIL import Image, ImageFilter, ImageEnhance, ImageOps
+except ImportError:
+    import Image, ImageFilter, ImageEnhance, ImageOps
+
 try:
   import numpy
   NUMPY_AVAILABLE = True

@@ -14,7 +14,11 @@
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
-import Image
+try:
+    from PIL import Image
+except ImportError:
+    import Image
+
 import projections
 import sys
 
