@@ -85,20 +85,27 @@ def twms_main(req):
     data = req
     data = dict((k.lower(), v) for k, v in data.iteritems())
     srs = data.get("srs", data.get("SRS", "EPSG:4326"))
-    gpx = data.get("gpx",None)
-    wkt = data.get("wkt",data.get("WKT",""))
-    color = data.get("color",data.get("COLOR",None))
+    gpx = data.get("gpx","").split(",")
+    wkt = data.get("wkt","")
+    color = data.get("color",data.get("colour","")).split(",")
     track = False
-    if not gpx:
+    tracks = []
+    if len(gpx) == 0:
       req_bbox = projections.from4326((27.6518898,53.8683186,27.6581944,53.8720359), srs)
     else:
-      local_gpx = config.gpx_cache + "%s.gpx" % gpx
-      if not os.path.exists (config.gpx_cache):
-        os.makedirs(config.gpx_cache)
-      if not os.path.exists (local_gpx):
-          urllib.urlretrieve ("http://www.openstreetmap.org/trace/%s/data" % gpx, local_gpx)
-      track = GPXParser(local_gpx)
-      req_bbox = projections.from4326(track.bbox, srs)
+      for g in gpx:
+        local_gpx = config.gpx_cache + "%s.gpx" % g
+        if not os.path.exists (config.gpx_cache):
+          os.makedirs(config.gpx_cache)
+        if not os.path.exists (local_gpx):
+            urllib.urlretrieve ("http://www.openstreetmap.org/trace/%s/data" % g, local_gpx)
+        if not track:
+          track = GPXParser(local_gpx)
+          req_bbox = projections.from4326(track.bbox, srs)
+        else:
+          track = GPXParser(local_gpx)
+          req_bbox = bbox.add(req_bbox, projections.from4326(track.bbox, srs))
+        tracks.append(track)
 
     req_type = data.get("REQUEST",data.get("request","GetMap"))
     version = data.get("VERSION",data.get("version","1.1.1"))
@@ -149,7 +156,7 @@ def twms_main(req):
       x = int(data.get("x",data.get("X",0)))
       y = int(data.get("y",data.get("Y",0)))
       z = int(data.get("z",data.get("Z",1))) + 1
-      if "cache_tile_responses" in dir(config) and not wkt and not gpx:
+      if "cache_tile_responses" in dir(config) and not wkt and (len(gpx) == 0):
         #print >> sys.stderr, (srs, tuple(layer), filt, width, height, force, format)
         #print >> sys.stderr, config.cache_tile_responses
         #sys.stderr.flush()
@@ -250,9 +257,16 @@ def twms_main(req):
     #print >> sys.stderr, wkt
     #sys.stderr.flush()
     if wkt:
-      result_img = drawing.wkt(wkt, result_img, req_bbox, srs, color)
-    if gpx:
-      result_img = drawing.gpx(track, result_img, req_bbox, srs, color)
+      result_img = drawing.wkt(wkt, result_img, req_bbox, srs, color if len(color) > 0 else None)
+    if len(gpx) > 0:
+      last_color = None
+      c = iter(color)
+      for track in tracks:
+        try:
+          last_color = c.next();
+        except StopIteration:
+          pass
+        result_img = drawing.gpx(track, result_img, req_bbox, srs, last_color)
 
     if flip_h:
       result_img = ImageOps.flip(result_img)
