@@ -86,7 +86,7 @@ def render_vector(geometry, img, bbox, coords, srs, color=None, renderer=None):
       cr = cairo.Context(surface)
       cr.move_to(*coords[0])
       color = ImageColor.getrgb(color)
-      cr.set_source_rgba(color[2], color[1], color[0], 1)
+      cr.set_source_rgba(color[2]/255.0, color[1]/255.0, color[0]/255.0, 1)
       if geometry == "LINESTRING" or geometry == "POLYGON":
         for k in coords:
           cr.line_to(*k)
