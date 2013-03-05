@@ -35,7 +35,7 @@ try:
 except ImportError:
   HAVE_CAIRO = False
 
-def wkt(wkt, img, bbox, srs, color):
+def wkt(wkt, img, bbox, srs, color, blend = 0.5):
     """
     Simple WKT renderer
     """
@@ -48,10 +48,10 @@ def wkt(wkt, img, bbox, srs, color):
        coords = coords.split(",")
        coords = [ [float(t) for t in x.split(" ")] for x in coords]
        canvas = render_vector(name, canvas, bbox, coords, srs, color)
-       img = Image.blend(img, canvas, 0.5)
+       img = Image.blend(img, canvas, blend)
     return img
 
-def gpx(track, img, bbox, srs, color):
+def gpx(track, img, bbox, srs, color, blend = 0.5):
     """
     Simple GPX renderer
     """
@@ -59,7 +59,7 @@ def gpx(track, img, bbox, srs, color):
       coords = track.getTrack(i)
       canvas = img.copy()
       canvas = render_vector("LINESTRING", canvas, bbox, coords, srs, color)
-      img = Image.blend(img, canvas, 0.5)
+      img = Image.blend(img, canvas, blend)
     return img
 
 

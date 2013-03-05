@@ -87,6 +87,7 @@ def twms_main(req):
     srs = data.get("srs", data.get("SRS", "EPSG:4326"))
     gpx = data.get("gpx","").split(",")
     wkt = data.get("wkt","")
+    trackblend = float(data.get("trackblend","0.5"))
     color = data.get("color",data.get("colour","")).split(",")
     track = False
     tracks = []
@@ -257,7 +258,7 @@ def twms_main(req):
     #print >> sys.stderr, wkt
     #sys.stderr.flush()
     if wkt:
-      result_img = drawing.wkt(wkt, result_img, req_bbox, srs, color if len(color) > 0 else None)
+      result_img = drawing.wkt(wkt, result_img, req_bbox, srs, color if len(color) > 0 else None, trackblend)
     if len(gpx) > 0:
       last_color = None
       c = iter(color)
@@ -266,7 +267,7 @@ def twms_main(req):
           last_color = c.next();
         except StopIteration:
           pass
-        result_img = drawing.gpx(track, result_img, req_bbox, srs, last_color)
+        result_img = drawing.gpx(track, result_img, req_bbox, srs, last_color, trackblend)
 
     if flip_h:
       result_img = ImageOps.flip(result_img)
