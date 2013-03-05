@@ -87,6 +87,7 @@ def twms_main(req):
     srs = data.get("srs", data.get("SRS", "EPSG:4326"))
     gpx = data.get("gpx",None)
     wkt = data.get("wkt",data.get("WKT",""))
+    color = data.get("color",data.get("COLOR",None))
     track = False
     if not gpx:
       req_bbox = projections.from4326((27.6518898,53.8683186,27.6581944,53.8720359), srs)
@@ -249,9 +250,9 @@ def twms_main(req):
     #print >> sys.stderr, wkt
     #sys.stderr.flush()
     if wkt:
-      result_img = drawing.wkt(wkt, result_img, req_bbox, srs)
+      result_img = drawing.wkt(wkt, result_img, req_bbox, srs, color)
     if gpx:
-      result_img = drawing.gpx(track, result_img, req_bbox, srs)
+      result_img = drawing.gpx(track, result_img, req_bbox, srs, color)
 
     if flip_h:
       result_img = ImageOps.flip(result_img)
