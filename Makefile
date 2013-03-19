@@ -5,7 +5,7 @@ CACHEDIR = $(localstatedir)/cache/$(PACKAGE)
 
 MANPAGES = twms.1
 BIN = twms.py
-DOC = README
+DOC = README.md
 ETC = twms/twms.conf
 DATA = tools/* irs_nxt.jpg yahoo_nxt.jpg yandex_nxt.jpg
 DIRS = $(CACHEDIR)/traces $(CACHEDIR)/tiles
