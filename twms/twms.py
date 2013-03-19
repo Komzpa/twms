@@ -31,10 +31,18 @@ import datetime
 sys.path.append(os.path.join(os.path.realpath(sys.path[0]), "twms"))
 config_path = "/etc/twms/twms.conf"
 if os.path.exists(config_path):
-  config = imp.load_source("config", config_path)
+  try:
+    config = imp.load_source("twms.config", config_path)
+  except:
+    config = imp.load_source("config", config_path)
 else:
-  config = imp.load_source("config", os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
-  sys.stderr.write( os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
+  try:
+    config_path = os.path.join("/usr/share/pyshared", "twms", "twms.conf")
+    config = imp.load_source("twms.config", config_path)
+  except:
+    config_path = os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf")
+    config = imp.load_source("config", os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
+  sys.stderr.write("Configuration file not found, using defaults from %s\n" % config_path)
   sys.stderr.flush()
 
 
