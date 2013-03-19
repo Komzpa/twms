@@ -70,4 +70,4 @@ install-python:
 		$(INSTALL_DATA) -D $$item $(DESTDIR)$(PYTHONDIR)/$$item; \
 	done
 
-.PHONY: build user-build install install-dirs install-config install-man install-data user-install
+.PHONY: build user-build install install-dirs install-bin install-config install-doc install-man install-data install-python user-install
