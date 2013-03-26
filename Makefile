@@ -9,7 +9,7 @@ DOC = README.md
 ETC = twms/twms.conf
 DATA = tools/* irs_nxt.jpg yahoo_nxt.jpg yandex_nxt.jpg
 DIRS = $(CACHEDIR)/traces $(CACHEDIR)/tiles
-PYTHON = twms/*
+PYTHONPKGS = twms
 
 user-install::
 	sed -i \

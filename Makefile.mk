@@ -1,4 +1,5 @@
-prefix ?= /usr
+PREFIX ?= /usr
+prefix ?= $(PREFIX)
 
 ifeq ($(prefix),/usr)
 sysconfdir ?= /etc
@@ -18,10 +19,16 @@ libdir ?= $(exec_prefix)/lib
 INSTALL ?= install
 INSTALL_DATA = $(INSTALL) -m 644
 INSTALL_PROGRAM = $(INSTALL) -m 755
+MKDIR = mkdir -m 755
+
+SYMLINK ?= cp -as
 
 ETCDIR = $(sysconfdir)/$(PACKAGE)
 DATADIR = $(datarootdir)/$(PACKAGE)
 PYTHONDIR ?= $(datarootdir)/pyshared
+
+PYTHON ?= python
+PYTHONLIBDIR ?= $(shell $(PYTHON) -c "import distutils.sysconfig; print distutils.sysconfig.get_python_lib()")
 
 build: user-build
 
@@ -65,9 +72,14 @@ install-data:
 	done
 
 install-python:
-	[ -z "$(PYTHON)" ] || $(INSTALL) -d $(DESTDIR)$(PYTHONDIR)
-	for item in $(PYTHON); do \
-		$(INSTALL_DATA) -D $$item $(DESTDIR)$(PYTHONDIR)/$$item; \
+	[ -z "$(PYTHONSCRIPTS)" ] || $(INSTALL) -d $(DESTDIR)$(PYTHONDIR)
+	[ -z "$(PYTHONLIBDIR)" ] || $(MKDIR) -p $(DESTDIR)$(PYTHONLIBDIR)
+	for pkg in $(PYTHONPKGS); do \
+		$(MKDIR) -p $(DESTDIR)$(PYTHONDIR)/$$pkg; \
+		for item in $$(find $$pkg/*); do \
+			$(INSTALL_DATA) -D $$item $(DESTDIR)$(PYTHONDIR)/$$item; \
+		done; echo $(PYTHONLIBDIR); \
+		[ -z "$(PYTHONLIBDIR)" ] || $(SYMLINK) $(DESTDIR)$(PYTHONDIR)/$$pkg $(DESTDIR)$(PYTHONLIBDIR); \
 	done
 
 .PHONY: build user-build install install-dirs install-bin install-config install-doc install-man install-data install-python user-install
