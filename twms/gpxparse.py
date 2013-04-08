@@ -14,7 +14,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys, string
+import sys, string, bz2, os
 from xml.dom import minidom, Node
 
 class GPXParser:
@@ -24,7 +24,16 @@ class GPXParser:
     self.trknum = 0
     self.bbox = (999,999,-999,-999)
     try:
-      doc = minidom.parse(filename)
+      file = bz2.BZ2File(filename)
+      file.read(1)
+      file.seek(0, os.SEEK_SET)
+    except:
+      try:
+        file = open(filename)
+      except:
+        return
+    try:
+      doc = minidom.parse(file)
       doc.normalize()
     except:
       return # handle this properly later
@@ -41,10 +50,9 @@ class GPXParser:
     minlat, minlon, maxlat, maxlon = self.bbox
     for trkseg in trk.getElementsByTagName('trkseg'):
       for trkpt in trkseg.getElementsByTagName('trkpt'):
-        
         lat = float(trkpt.getAttribute('lat'))
         lon = float(trkpt.getAttribute('lon'))
-	if lat > maxlat:
+        if lat > maxlat:
           maxlat = lat
         if lat < minlat:
           minlat = lat
@@ -54,7 +62,7 @@ class GPXParser:
           minlon = lon
     #    ele = float(trkpt.getElementsByTagName('ele')[0].firstChild.data)
         rfc3339 = trkpt.getElementsByTagName('time')[0].firstChild.data
-	self.pointnum += 1
+        self.pointnum += 1
         self.tracks[name][self.pointnum]={'lat':lat,'lon':lon}
     self.bbox = (minlon, minlat, maxlon, maxlat)
 
