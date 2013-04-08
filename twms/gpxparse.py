@@ -14,7 +14,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with tWMS.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys, string, bz2, os
+import sys, string, bz2, gzip, os
 from xml.dom import minidom, Node
 
 class GPXParser:
@@ -24,14 +24,16 @@ class GPXParser:
     self.trknum = 0
     self.bbox = (999,999,-999,-999)
     try:
-      file = bz2.BZ2File(filename)
-      file.read(1)
-      file.seek(0, os.SEEK_SET)
+      file = open(filename)
+      signature = file.read(2)
+      file.close()
+      file = {
+        "BZ": lambda f: bz2.BZ2File(f),
+        "\x1f\x8b": lambda f: gzip.GzipFile(f),
+        "<?": lambda f: open(f)
+      }[signature](filename)
     except:
-      try:
-        file = open(filename)
-      except:
-        return
+      return
     try:
       doc = minidom.parse(file)
       doc.normalize()
