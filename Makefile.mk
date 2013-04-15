@@ -62,7 +62,7 @@ install-doc:
 install-man:
 	[ -z "$(MANPAGES)" ] || $(INSTALL) -d $(DESTDIR)$(mandir)
 	for item in $(MANPAGES); do \
-		$(INSTALL_DATA) -D $$item $(DESTDIR)$(mandir)/$$item; \
+		$(INSTALL_DATA) -D $$item $(DESTDIR)$(mandir)/man$${item##*.}/$$item; \
 	done
 
 install-data:
