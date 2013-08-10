@@ -21,7 +21,7 @@ INSTALL_DATA = $(INSTALL) -m 644
 INSTALL_PROGRAM = $(INSTALL) -m 755
 MKDIR = mkdir -m 755
 
-SYMLINK ?= cp -as
+SYMLINK ?= ln -s
 
 ETCDIR = $(sysconfdir)/$(PACKAGE)
 DATADIR = $(datarootdir)/$(PACKAGE)
@@ -78,8 +78,11 @@ install-python:
 		$(MKDIR) -p $(DESTDIR)$(PYTHONDIR)/$$pkg; \
 		for item in $$(find $$pkg/*); do \
 			$(INSTALL_DATA) -D $$item $(DESTDIR)$(PYTHONDIR)/$$item; \
-		done; echo $(PYTHONLIBDIR); \
-		[ -z "$(PYTHONLIBDIR)" ] || $(SYMLINK) $(PYTHONDIR)/$$pkg $(DESTDIR)$(PYTHONLIBDIR); \
+		done; \
+		[ -z "$(PYTHONLIBDIR)" ] || for item in $$(find $$pkg/*) ; do \
+		    $(MKDIR) -p $(DESTDIR)$(PYTHONLIBDIR)/$${item%/*}; \
+		    $(SYMLINK) $(PYTHONDIR)/$$item $(DESTDIR)$(PYTHONLIBDIR)/$$item; \
+		done; \
 	done
 
 .PHONY: build user-build install install-dirs install-bin install-config install-doc install-man install-data install-python user-install
