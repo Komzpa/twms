@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#    This file is part of tWMS.
+#    This file is part of twms.
 
 # This program is free software. It comes without any warranty, to
 # the extent permitted by applicable law. You can redistribute it
@@ -12,7 +12,7 @@ import projections
 
 def html(ref):
     """
-    Gives overall information about tWMS server and its layers in HTML format.
+    Gives overall information about twms server and its layers in HTML format.
     """
     resp = "<!doctype html>"
     resp += "<html><head><title>"

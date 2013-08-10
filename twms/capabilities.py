@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#    This file is part of tWMS.
+#    This file is part of twms.
 
 # This program is free software. It comes without any warranty, to
 # the extent permitted by applicable law. You can redistribute it
@@ -129,7 +129,7 @@ def get(version, ref):
         <!-- Service Metadata -->
         <Service>
                 <!-- The WMT-defined name for this type of service -->
-                <Name>tWMS</Name>
+                <Name>twms</Name>
                 <!-- Human-readable title for pick lists -->
                 <Title>""" + config.wms_name + """</Title>
                 <!-- Narrative description providing additional information -->

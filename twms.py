@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-#    This file is part of tWMS.
+#    This file is part of twms.
 
 # This program is free software. It comes without any warranty, to
 # the extent permitted by applicable law. You can redistribute it
