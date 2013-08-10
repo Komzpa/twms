@@ -19,6 +19,8 @@ import web
 import sys
 from twms.twms import *
 
+import sys, socket
+
 try:
         import psyco
         psyco.full()
@@ -63,9 +65,13 @@ if __name__ == "__main__":
     except IndexError:
       pass
 
-
-    app = web.application(urls, globals())
-    app.run()                                                    # standalone run
+    try:
+      app = web.application(urls, globals())
+      app.run()                                                  # standalone run
+    except socket.error:
+      print "Can't open socket. Abort."
+      sys.exit(1)
 
 
 application = web.application(urls, globals()).wsgifunc()        # mod_wsgi
+
