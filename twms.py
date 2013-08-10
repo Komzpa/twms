@@ -67,6 +67,9 @@ class mainhandler:
     def GET(self, crap):
         data = web.input()
         data = dict((k.lower(), v) for k, v in data.iteritems())
+        if "ref" not in data:
+            if web.ctx.env['HTTP_HOST']:
+                data["ref"] = web.ctx.env['wsgi.url_scheme'] + "://" + web.ctx.env['HTTP_HOST'] + "/"
         return handler(data)
 
 
