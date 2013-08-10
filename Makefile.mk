@@ -79,7 +79,7 @@ install-python:
 		for item in $$(find $$pkg/*); do \
 			$(INSTALL_DATA) -D $$item $(DESTDIR)$(PYTHONDIR)/$$item; \
 		done; echo $(PYTHONLIBDIR); \
-		[ -z "$(PYTHONLIBDIR)" ] || $(SYMLINK) $(DESTDIR)$(PYTHONDIR)/$$pkg $(DESTDIR)$(PYTHONLIBDIR); \
+		[ -z "$(PYTHONLIBDIR)" ] || $(SYMLINK) $(PYTHONDIR)/$$pkg $(DESTDIR)$(PYTHONLIBDIR); \
 	done
 
 .PHONY: build user-build install install-dirs install-bin install-config install-doc install-man install-data install-python user-install
