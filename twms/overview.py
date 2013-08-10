@@ -35,8 +35,8 @@ def html(ref):
       resp += layers[i]["name"]
       resp += "</h3><b>Bounding box:</b> "+ str(bbox) +" (show on <a href=\"http://openstreetmap.org/?minlon=%s&amp;minlat=%s&amp;maxlon=%s&amp;maxlat=%s&amp;box=yes\">OSM</a>" % bbox  +")<br />"
       resp += "<b>Projection:</b> "+ layers[i]["proj"]  +"<br />"
-      resp += "<b>WMS half-link:</b> "+ ref+"?layers="+ i +"&amp;<br />"
-      resp += "<b>Tiles URL:</b> "+ ref+"?layers="+ i +"&amp;request=GetTile&amp;z=!&amp;=!&amp;y=! <br />"
+      resp += "<b>WMS half-link:</b> "+ ref + "?layers=" + i + "&amp;<br />"
+      resp += "<b>Tiles URL:</b> "+ ref + "" + i + "/!/!/!." + layers[i].get("ext", "jpg") + "<br />"
       resp += "</td></tr>"
     resp += "</table></body></html>"
     return resp
