@@ -73,6 +73,15 @@ ERROR = 500
 cached_objs = {}        # a dict. (layer, z, x, y): PIL image
 cached_hist_list = []
 
+formats = {
+    "image/gif": "GIF",
+    "image/jpeg": "JPEG",
+    "image/jpg": "JPEG",
+    "image/png": "PNG",
+    "image/bmp": "BMP",
+}
+
+mimetypes = dict(zip(formats.values(), formats.keys()))
 
 def twms_main(req):
     """
@@ -87,7 +96,7 @@ def twms_main(req):
     
     
     start_time = datetime.datetime.now()
-    formats = {"image/gif":"GIF","image/jpeg":"JPEG","image/jpg":"JPEG","image/png":"PNG","image/bmp":"BMP"}
+
     content_type = "text/html"
     resp = ""
     data = req
@@ -149,9 +158,11 @@ def twms_main(req):
       return (OK, content_type, resp)
 
     format = data.get("format", data.get("FORMAT", config.default_format))
-    if format not in formats:
+    format = formats.get("image/" + format, format)
+    format = formats.get(format, format)
+    if format not in formats.values():
        return (ERROR, content_type, "Invalid format")
-    content_type = format
+    content_type = mimetypes[format]
 
     width=0
     height=0
@@ -281,18 +292,18 @@ def twms_main(req):
       result_img = ImageOps.flip(result_img)
     image_content = StringIO.StringIO()
 
-    if formats[format] == "JPEG":
+    if format == "JPEG":
        try:
-        result_img.save(image_content, formats[format], quality=config.output_quality, progressive=config.output_progressive)
+        result_img.save(image_content, format, quality=config.output_quality, progressive=config.output_progressive)
        except IOError:
-        result_img.save(image_content, formats[format], quality=config.output_quality)
-    elif formats[format] == "PNG":
-       result_img.save(image_content, formats[format], progressive=config.output_progressive, optimize =config.output_optimize)
-    elif formats[format] == "GIF":
-       result_img.save(image_content, formats[format], quality=config.output_quality, progressive=config.output_progressive)
+        result_img.save(image_content, format, quality=config.output_quality)
+    elif format == "PNG":
+       result_img.save(image_content, format, progressive=config.output_progressive, optimize =config.output_optimize)
+    elif format == "GIF":
+       result_img.save(image_content, format, quality=config.output_quality, progressive=config.output_progressive)
     else:       ## workaround for GIF
        result_img = result_img.convert("RGB")
-       result_img.save(image_content, formats[format], quality=config.output_quality, progressive=config.output_progressive)
+       result_img.save(image_content, format, quality=config.output_quality, progressive=config.output_progressive)
     resp = image_content.getvalue()
     if resp_cache_path:
       try:
