@@ -83,23 +83,17 @@ formats = {
 
 mimetypes = dict(zip(formats.values(), formats.keys()))
 
-def twms_main(req):
+def twms_main(data):
     """
     Do main TWMS work. 
-    req - dictionary of params. 
-    returns (error_code, content_type, data)
+    data - dictionary of params. 
+    returns (error_code, content_type, resp)
     """
 
-    #print >> sys.stderr, len(cached_objs), " --- cached items"
-    #sys.stderr.flush()
-    
-    
-    
     start_time = datetime.datetime.now()
 
     content_type = "text/html"
     resp = ""
-    data = req
     data = dict((k.lower(), v) for k, v in data.iteritems())
     srs = data.get("srs", data.get("SRS", "EPSG:4326"))
     gpx = data.get("gpx","").split(",")
