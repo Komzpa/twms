@@ -31,23 +31,43 @@ OK = 200
 ERROR = 500
 
 
-def handler():
+def handler(data):
     """
     A handler for web.py.
     """
-    data = web.input()
     resp, ctype, content = twms_main(data)
-    web.header('Content-type', ctype)
+    web.header('Content-Type', ctype)
     return content
 
 
 
 urls = (
+      '/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)', 'tilehandler',
       '/(.*)', 'mainhandler'
 )
+
+class tilehandler:
+    def GET(self, layers, z, x, y, format, rest):
+        if format is None:
+            format = "jpeg"
+        else:
+            format = format.lower()
+        data = {
+            "request": "GetTile",
+            "layers": layers,
+            "format": format.strip("."),
+            "z": z,
+            "x": x,
+            "y": y
+        }
+        return handler(data)
+
+
 class mainhandler:
-   def GET(self, crap):
-       return handler()
+    def GET(self, crap):
+        data = web.input()
+        data = dict((k.lower(), v) for k, v in data.iteritems())
+        return handler(data)
 
 
 

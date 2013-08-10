@@ -94,7 +94,6 @@ def twms_main(data):
 
     content_type = "text/html"
     resp = ""
-    data = dict((k.lower(), v) for k, v in data.iteritems())
     srs = data.get("srs", data.get("SRS", "EPSG:4326"))
     gpx = data.get("gpx","").split(",")
     wkt = data.get("wkt","")
