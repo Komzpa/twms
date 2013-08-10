@@ -94,7 +94,7 @@ def twms_main(data):
 
     content_type = "text/html"
     resp = ""
-    srs = data.get("srs", data.get("SRS", "EPSG:4326"))
+    srs = data.get("srs", "EPSG:4326")
     gpx = data.get("gpx","").split(",")
     wkt = data.get("wkt","")
     trackblend = float(data.get("trackblend","0.5"))
@@ -118,17 +118,17 @@ def twms_main(data):
           req_bbox = bbox.add(req_bbox, projections.from4326(track.bbox, srs))
         tracks.append(track)
 
-    req_type = data.get("REQUEST",data.get("request","GetMap"))
-    version = data.get("VERSION",data.get("version","1.1.1"))
+    req_type = data.get("request","GetMap")
+    version = data.get("version","1.1.1")
     ref = data.get("ref",config.service_url)
     if req_type == "GetCapabilities":
      content_type, resp = capabilities.get(version, ref)
      return (OK, content_type, resp)
 
-    layer = data.get("layers",data.get("LAYERS", config.default_layers)).split(",")
-    if ("LAYERS" in data or "layers" in data) and not layer[0]:
+    layer = data.get("layers",config.default_layers).split(",")
+    if ("layers" in data) and not layer[0]:
       layer = ["transparent"]
-      
+
     if req_type == "GetCorrections":
        points = data.get("points",data.get("POINTS", "")).split("=")
        resp = ""
@@ -150,7 +150,7 @@ def twms_main(data):
       resp = overview.html(ref)
       return (OK, content_type, resp)
 
-    format = data.get("format", data.get("FORMAT", config.default_format))
+    format = data.get("format", config.default_format).lower()
     format = formats.get("image/" + format, format)
     format = formats.get(format, format)
     if format not in formats.values():
@@ -163,18 +163,15 @@ def twms_main(data):
     if req_type == "GetTile":
       width=256
       height=256
-      height = int(data.get("height",data.get("HEIGHT",height)))
-      width = int(data.get("width",data.get("WIDTH",width)))
-      srs = data.get("srs", data.get("SRS", "EPSG:3857"))
-      x = int(data.get("x",data.get("X",0)))
-      y = int(data.get("y",data.get("Y",0)))
-      z = int(data.get("z",data.get("Z",1))) + 1
+      height = int(data.get("height",height))
+      width = int(data.get("width",width))
+      srs = data.get("srs", "EPSG:3857")
+      x = int(data.get("x",0))
+      y = int(data.get("y",0))
+      z = int(data.get("z",1)) + 1
       if "cache_tile_responses" in dir(config) and not wkt and (len(gpx) == 0):
-        #print >> sys.stderr, (srs, tuple(layer), filt, width, height, force, format)
-        #print >> sys.stderr, config.cache_tile_responses
-        #sys.stderr.flush()
         if (srs, tuple(layer), filt, width, height, force, format) in config.cache_tile_responses:
-          
+
           resp_cache_path, resp_ext = config.cache_tile_responses[(srs, tuple(layer), filt, width, height, force, format)]
           resp_cache_path = resp_cache_path+"/%s/%s/%s.%s"%(z-1,x,y,resp_ext)
           if os.path.exists(resp_cache_path):
@@ -192,8 +189,8 @@ def twms_main(data):
              return (OK, content_type, resp)
       req_bbox = projections.from4326(projections.bbox_by_tile(z,x,y,srs),srs)
 
-    if data.get("bbox",data.get("BBOX",None)):
-      req_bbox = tuple(map(float,data.get("bbox",data.get("BBOX",req_bbox)).split(",")))
+    if data.get("bbox",None):
+      req_bbox = tuple(map(float,data.get("bbox",req_bbox).split(",")))
 
     req_bbox = projections.to4326(req_bbox, srs)
 
@@ -202,8 +199,8 @@ def twms_main(data):
     #print >> sys.stderr, req_bbox
     #sys.stderr.flush()
 
-    height = int(data.get("height",data.get("HEIGHT",height)))
-    width = int(data.get("width",data.get("WIDTH",width)))
+    height = int(data.get("height",height))
+    width = int(data.get("width",width))
     width = min(width, config.max_width)
     height = min(height, config.max_height)
     if (width == 0) and (height == 0):
@@ -224,7 +221,6 @@ def twms_main(data):
       result_img = getimg(box,srs, (height, width), config.layers[ll], start_time, force)
     except KeyError:
       result_img = Image.new("RGBA", (width,height))
-    
 
 
     #width, height =  result_img.size
@@ -311,7 +307,7 @@ def twms_main(data):
       except (OSError, IOError):
         print >> sys.stderr, "error saving response answer to file %s." % (resp_cache_path)
         sys.stderr.flush()
-        
+
     return (OK, content_type, resp)
 
 
