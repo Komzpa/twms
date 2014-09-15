@@ -351,9 +351,12 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
 
       if layer["scalable"] and (z<layer.get("max_zoom", config.default_max_zoom)) and trybetter:      # Second, try to glue image of better ones
           if os.path.exists(local+"ups."+ext):
-              im = Image.open(local+"ups."+ext)
-              im.is_ok = True
-              return im
+              try:
+                  im = Image.open(local+"ups."+ext)
+                  im.is_ok = True
+                  return im
+              except IOError:
+                  pass
           ec = ImageColor.getcolor(layer.get("empty_color", config.default_background), "RGBA")
           ec = (ec[0],ec[1],ec[2],0)
           im = Image.new("RGBA", (512, 512), ec)
@@ -371,7 +374,10 @@ def tile_image (layer, z, x, y, start_time, again=False, trybetter = True, real 
                 im.paste(im4,(256,256))
                 im = im.resize((256,256),Image.ANTIALIAS)
                 if layer.get("cached", True):
-                  im.save(local+"ups."+ext)
+                  try:
+                    im.save(local+"ups."+ext)
+                  except IOError:
+                    pass
                 im.is_ok = True
                 return im
       if not again:
