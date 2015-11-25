@@ -89,6 +89,8 @@ def twms_main(data):
     resp = ""
     srs = data.get("srs", "EPSG:4326")
     gpx = data.get("gpx","").split(",")
+    if gpx == ['']:
+      gpx = []
     wkt = data.get("wkt","")
     trackblend = float(data.get("trackblend","0.5"))
     color = data.get("color",data.get("colour","")).split(",")
