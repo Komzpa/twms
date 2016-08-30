@@ -173,7 +173,7 @@ def twms_main(data):
             return (OK, content_type, open(resp_cache_path, "r").read())
       if len(layer) == 1:
        if layer[0] in config.layers:
-        if config.layers[layer[0]]["proj"] == srs and width is 256 and height is 256 and not filt and not force and not correctify.has_corrections(layer[0]):
+        if config.layers[layer[0]]["proj"] == srs and width is 256 and height is 256 and not filt and not force and not correctify.has_corrections(config.layers[layer[0]]):
           local = config.tiles_cache + config.layers[layer[0]]["prefix"] + "/z%s/%s/x%s/%s/y%s."%(z, x/1024, x, y/1024,y)
           ext = config.layers[layer]["ext"]
           adds = ["","ups."]
