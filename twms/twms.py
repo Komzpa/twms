@@ -138,8 +138,16 @@ def twms_main(data):
        return (OK, content_type, resp)
 
 
-    force = tuple(data.get("force","").split(","))
-    filt  = tuple(data.get("filter","").split(","))
+    force = data.get("force", "")
+    if force != "":
+        force = force.split(",")
+    force = tuple(force)
+
+    filt = data.get("filt", "")
+    if filt != "":
+        filt = filt.split(",")
+    filt = tuple(filt)
+
     if layer == [""] :
       content_type = "text/html"
       resp = overview.html(ref)
