@@ -21,7 +21,9 @@ import urllib
 import StringIO
 import time
 import datetime
-sys.path.append(os.path.join(os.path.realpath(sys.path[0]), "twms"))
+
+sys.path.append(os.path.join(os.path.dirname(__file__)))
+
 config_path = "/etc/twms/twms.conf"
 if os.path.exists(config_path):
   try:
@@ -30,7 +32,7 @@ if os.path.exists(config_path):
     config = imp.load_source("config", config_path)
 else:
   try:
-    config_path = os.path.join("/usr/share/pyshared", "twms", "twms.conf")
+    config_path = os.path.join(os.path.dirname(__file__), "twms.conf")
     config = imp.load_source("twms.config", config_path)
   except:
     config_path = os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf")

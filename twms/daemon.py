@@ -10,7 +10,7 @@
 
 import web
 import sys
-from twms.twms import *
+from twms import *
 
 import sys, socket
 
@@ -67,7 +67,7 @@ class mainhandler:
 
 
 
-if __name__ == "__main__":
+def main():
     try:
      if sys.argv[1] == "josm":                                  # josm mode 
       import cgi
@@ -91,3 +91,5 @@ if __name__ == "__main__":
 
 application = web.application(urls, globals()).wsgifunc()        # mod_wsgi
 
+if __name__ == "__main__":
+    main()

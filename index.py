@@ -7,7 +7,7 @@
 # To Public License, Version 2, as published by Sam Hocevar. See
 # http://www.wtfpl.net/ for more details.
 
-import twms
+from twms import twms
 
 
 if __name__ != '__main__':
