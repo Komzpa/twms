@@ -1,14 +1,36 @@
-            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-                    Version 2, December 2004
+The authors, Darafei Praliaskouski (Komzpa) and Andrew Shadura,
+explicitly disclaim copyright in all jurisdictions which recognise such
+a disclaimer. In such jurisdictions, this software is released into the
+Public Domain.
 
- Copyright © 2009—2013 Darafei Praliaskoiski <me@komzpa.net>
-           © 2010—2013 Andrew Shadura <bugzilla@tut.by>
+In jurisdictions which do not recognise Public Domain property, this software is
 
- Everyone is permitted to copy and distribute verbatim or modified
- copies of this license document, and changing it is allowed as long
- as the name is changed.
+  Copyright © 2009—2013 Darafei Praliaskouski <me@komzpa.net>
+  Copyright © 2010—2013, 2016 Andrew Shadura <andrew@shadura.me>
 
-            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
-   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+and is released under the terms of the ISC License (see below).
 
-  0. You just DO WHAT THE FUCK YOU WANT TO.
+In jurisdictions which recognise Public Domain property, the user of this
+software may choose to accept it either as 1) Public Domain, 2) under
+the conditions of the ISC License (see below), or 3) under the terms of
+dual Public Domain/ISC License conditions described here, as they choose.
+
+The ISC License is compatible with both the copyleft and proprietary
+software, being as close to Public Domain as possible with the minor
+nuisance of being required to keep this copyright notice and license
+text in the source code. Note also that by accepting the Public Domain
+"license" you can re-license your copy using whatever license you like.
+
+The full text of the ISC License follows:
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY
+SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
