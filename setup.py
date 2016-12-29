@@ -46,7 +46,7 @@ setup(
     url = 'https://github.com/komzpa/twms',
     description = 'tiny web map service',
     long_description = read('README.md'),
-    license = 'WTFPL',
+    license = 'Public Domain or ISC',
     packages = find_packages(),
     install_requires = ['Pillow', 'web.py'],
     extras_require = {
