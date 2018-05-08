@@ -18,7 +18,7 @@ import os
 import math
 import sys
 import urllib
-from io import StringIO
+from io import BytesIO
 import time
 import datetime
 
@@ -284,7 +284,7 @@ def twms_main(data):
 
     if flip_h:
       result_img = ImageOps.flip(result_img)
-    image_content = StringIO()
+    image_content = BytesIO()
 
     if format == "JPEG":
        try:

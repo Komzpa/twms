@@ -21,7 +21,7 @@ except ImportError:
     import Image, ImageFilter
 
 import urllib2
-import StringIO
+from io import BytesIO
 import datetime
 import sys
 import threading
@@ -88,7 +88,7 @@ class WmsCanvas:
        ttz = datetime.datetime.now()
        contents = urllib2.urlopen(remote).read()
        debug("Download took %s" % str(datetime.datetime.now() - ttz))
-       im = Image.open(StringIO.StringIO(contents))   
+       im = Image.open(BytesIO(contents))
        if im.mode != self.mode:
          im = im.convert(self.mode)
       else:

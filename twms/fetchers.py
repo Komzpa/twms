@@ -14,7 +14,7 @@ import time
 import os
 import math
 import sys
-from io import StringIO
+from io import BytesIO
 try:
     from PIL import Image
 except ImportError:
@@ -90,7 +90,7 @@ def WMS (z, x, y, this_layer):
             return im
         except (IOError, OSError):
           return None
-   im = Image.open(StringIO(urlopen(wms).read()))
+   im = Image.open(BytesIO(urlopen(wms).read()))
    if width is not 256 and height is not 256:
     im = im.resize((256,256),Image.ANTIALIAS)
    im = im.convert("RGBA")
@@ -134,7 +134,7 @@ def Tile (z, x, y, this_layer):
           return None
    try:
      contents = urlopen(remote).read()
-     im = Image.open(StringIO(contents))  
+     im = Image.open(BytesIO(contents))  
    except IOError:
      if this_layer.get("cached", True):
        os.rmdir(local+"lock")
