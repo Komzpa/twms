@@ -23,7 +23,7 @@ def handler(req):
     A handler for mod_python.
     """
     data = util.FieldStorage(req)
-    data = dict((k.lower(), v) for k, v in data.iteritems())
+    data = dict((k.lower(), data[k]) for k in iter(data))
     resp, ctype, content = twms.twms_main(data)
     req.content_type = ctype
     req.write(content)

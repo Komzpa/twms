@@ -59,7 +59,7 @@ class tilehandler:
 class mainhandler:
     def GET(self, crap):
         data = web.input()
-        data = dict((k.lower(), v) for k, v in data.iteritems())
+        data = dict((k.lower(), data[k]) for k in iter(data))
         if "ref" not in data:
             if web.ctx.env['HTTP_HOST']:
                 data["ref"] = web.ctx.env['wsgi.url_scheme'] + "://" + web.ctx.env['HTTP_HOST'] + "/"
