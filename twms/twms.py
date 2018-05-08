@@ -6,7 +6,7 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-from __future__ import print_function
+from __future__ import print_function, division
 
 try:
     from PIL import Image, ImageOps, ImageColor
@@ -489,9 +489,9 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
       if (H == W) and (H == 0):
         W, H = out.size
       if H == 0:
-        H = out.size[1]*W/out.size[0]
+        H = out.size[1]*W // out.size[0]
       if W == 0:
-        W = out.size[0]*H/out.size[1]
+        W = out.size[0]*H // out.size[1]
    #bbox = orig_bbox
    quad = []
    trans_needed = False
