@@ -263,7 +263,7 @@ def transform(line, srs1, srs2):
         return line
     if (srs1, srs2) in pure_python_transformers:
         func = pure_python_transformers[(srs1, srs2)]
-        # print "pure"
+        # print("pure")
     else:
 
         func = pyproj.transform
@@ -292,17 +292,17 @@ def transform(line, srs1, srs2):
 
 if __name__ == "__main__":
     import debug
-    print _c4326t3857(1, 2, 27.6, 53.2)
-    print from4326((27.6, 53.2), "EPSG:3857")
+    print(_c4326t3857(1, 2, 27.6, 53.2))
+    print(from4326((27.6, 53.2), "EPSG:3857"))
     a = _c4326t3857(1, 2, 27.6, 53.2)
-    print to4326(a, "EPSG:3857")
-    print _c3857t4326(1, 2, a[0], a[1])
-    print "3395:"
-    print _c4326t3395(1, 2, 27.6, 53.2)
-    print from4326((27.6, 53.2), "EPSG:3395")
+    print(to4326(a, "EPSG:3857"))
+    print(_c3857t4326(1, 2, a[0], a[1]))
+    print("3395:")
+    print(_c4326t3395(1, 2, 27.6, 53.2))
+    print(from4326((27.6, 53.2), "EPSG:3395"))
     a = _c4326t3395(1, 2, 27.6, 53.2)
-    print to4326(a, "EPSG:3395")
-    print _c3395t4326(1, 2, a[0], a[1])
+    print(to4326(a, "EPSG:3395"))
+    print(_c3395t4326(1, 2, a[0], a[1]))
 
     a = debug.Timer("Pure python 4326<3857")
     for i in xrange(0, 100000):

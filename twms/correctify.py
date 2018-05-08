@@ -38,7 +38,7 @@ def rectify(layer, point):
     loni, lati, lona, lata = projections.projs[projections.proj_alias.get(srs,srs)]["bounds"]
     if (lons is loni and lats is lati) or (lons is lona and lats is lata):
       return point
-    #print >> sys.stderr, pickle.dumps(coefs[layer])
+    #print(pickle.dumps(coefs[layer]), file=sys.stderr)
 #    sys.stderr.flush()
     lonaz, loniz, lataz, latiz = lona, loni, lata, lati
     maxdist = (1.80)
@@ -46,7 +46,7 @@ def rectify(layer, point):
        d,c,b,a,user,ts = line.split()
        d,c,b,a = (float(d),float(c),float(b),float(a))
     #for d,c,b,a in coefs[layer]:
-      # print >> sys.stderr, a,b, distance(lons, lats, b, a)
+      # print(a,b, distance(lons, lats, b, a), file=sys.stderr)
        if distance(b,a, lons, lats) < maxdist:
         if a > lats:
           if distance(a,b,lats,lons) <= distance(lata,lona,lats,lons):
@@ -64,8 +64,8 @@ def rectify(layer, point):
           if distance(a,b,lats,lons) <= distance(lati,loni,lats,lons):
             loni = b
             loniz = d
-#    print >> sys.stderr, loni, lati, lona, lata, distance(loni, lati, lona, lata)
-#    print >> sys.stderr, "clat:", (lata-lati)/(lataz-latiz), (lona-loni)/(lonaz-loniz)
+#    print(loni, lati, lona, lata, distance(loni, lati, lona, lata), file=sys.stderr)
+#    print("clat:", (lata-lati)/(lataz-latiz), (lona-loni)/(lonaz-loniz), file=sys.stderr)
 #    sys.stderr.flush()
 
     lons, lats = projections.from4326(point, srs)
@@ -82,7 +82,7 @@ def rectify(layer, point):
        
     return projections.to4326((lonn,latn), srs)
        
-#print rectify("yasat", (27.679068, 53.885122), "")
+#print(rectify("yasat", (27.679068, 53.885122), ""))
 def r_bbox(layer, bbox):
     corrfile = config.tiles_cache + layer.get("prefix", "")+ "/rectify.txt"
     srs = layer["proj"]
@@ -95,7 +95,7 @@ def r_bbox(layer, bbox):
     c1,d1 = projections.from4326(rectify(layer,projections.to4326((c,d), srs)),srs)
     
     dx,dy = ((cx1-cx)+(a1-a)+(c1-c))/3, ((cy1-cy)+(b1-b)+(d1-d))/3
-#    print >> sys.stderr, dx,dy
+#    print(dx,dy, file=sys.stderr)
 #    sys.stderr.flush()
     return projections.to4326((a+dx,b+dy,c+dx,d+dy),srs)
     

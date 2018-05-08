@@ -21,7 +21,7 @@ def man_path(fname):
     return os.path.join('share', 'man', 'man' + category), [fname]
 
 def man_files(pattern):
-    return map(man_path, glob(pattern))
+    return list(map(man_path, glob(pattern)))
 
 def config_files():
     if not is_windows:

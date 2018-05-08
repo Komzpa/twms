@@ -6,6 +6,8 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
+from __future__ import print_function
+
 import web
 import sys
 from twms import *
@@ -74,7 +76,7 @@ def main():
       for t in data.keys():
         data[t] = data[t][0]
       resp, ctype, content = twms_main(data)
-      print content
+      print(content)
       exit()
     except IndexError:
       pass
@@ -83,7 +85,7 @@ def main():
       app = web.application(urls, globals())
       app.run()                                                  # standalone run
     except socket.error:
-      print "Can't open socket. Abort."
+      print("Can't open socket. Abort.", file=sys.stderr)
       sys.exit(1)
 
 

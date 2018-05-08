@@ -66,4 +66,4 @@ def decode_point(bbox, code):
      return lon, lat
 
 #Window.alert(code_point((0,0,0,0), 53.11, 27.3434))
-#print decode_point((0,0,0,0), ".@aaa")
+#print(decode_point((0,0,0,0), ".@aaa"))

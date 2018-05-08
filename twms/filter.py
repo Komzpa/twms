@@ -80,8 +80,8 @@ def raster(result_img, filt, bbox = (-999,-999,999,9999), srs="EPSG:3857"):
         a,b = result_img.size
         pan_img = getimg (bbox, srs, [b, a], config.layers[tts], datetime.datetime.now(), [])
         pan_img = pan_img.convert("L")
-        print pix.dtype
-        print pix[...,1].shape
+        print(pix.dtype)
+        print(pix[...,1].shape)
         
         pan = numpy.array(pan_img)
         
@@ -89,7 +89,7 @@ def raster(result_img, filt, bbox = (-999,-999,999,9999), srs="EPSG:3857"):
         pix[...,1] = pix[...,1]*pan/(pix[...,0] + pix[...,1] + pix[...,2])
         pix[...,2] = pix[...,2]*pan/(pix[...,0] + pix[...,1] + pix[...,2])
 
-        print pix.shape
+        print(pix.shape)
         result_img = Image.fromarray(numpy.uint8(pix))
         
         

@@ -5,20 +5,22 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-import urllib2
+try:
+    from urllib.request import urlopen
+except ImportError:
+    from urllib2 import urlopen
 import filecmp
 import time
 import os
 import math
 import sys
-import StringIO
+from io import StringIO
 try:
     from PIL import Image
 except ImportError:
     import Image
 
 import time
-from exceptions import OSError, IOError
 
 import config
 import projections
@@ -88,7 +90,7 @@ def WMS (z, x, y, this_layer):
             return im
         except (IOError, OSError):
           return None
-   im = Image.open(StringIO.StringIO(urllib2.urlopen(wms).read()))
+   im = Image.open(StringIO(urlopen(wms).read()))
    if width is not 256 and height is not 256:
     im = im.resize((256,256),Image.ANTIALIAS)
    im = im.convert("RGBA")
@@ -131,8 +133,8 @@ def Tile (z, x, y, this_layer):
         except (IOError, OSError):
           return None
    try:
-     contents = urllib2.urlopen(remote).read()
-     im = Image.open(StringIO.StringIO(contents))  
+     contents = urlopen(remote).read()
+     im = Image.open(StringIO(contents))  
    except IOError:
      if this_layer.get("cached", True):
        os.rmdir(local+"lock")

@@ -6,6 +6,8 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
+from __future__ import print_function
+
 try:
     from PIL import Image, ImageOps, ImageColor
 except ImportError:
@@ -16,7 +18,7 @@ import os
 import math
 import sys
 import urllib
-import StringIO
+from io import StringIO
 import time
 import datetime
 
@@ -199,7 +201,7 @@ def twms_main(data):
 
     req_bbox, flip_h = bbox.normalize(req_bbox)
     box = req_bbox
-    #print >> sys.stderr, req_bbox
+    #print(req_bbox, file=sys.stderr)
     #sys.stderr.flush()
 
     height = int(data.get("height",height))
@@ -266,7 +268,7 @@ def twms_main(data):
     ##Applying filters
     result_img = filter.raster(result_img, filt, req_bbox, srs)
 
-    #print >> sys.stderr, wkt
+    #print(wkt, file=sys.stderr)
     #sys.stderr.flush()
     if wkt:
       result_img = drawing.wkt(wkt, result_img, req_bbox, srs, color if len(color) > 0 else None, trackblend)
@@ -282,7 +284,7 @@ def twms_main(data):
 
     if flip_h:
       result_img = ImageOps.flip(result_img)
-    image_content = StringIO.StringIO()
+    image_content = StringIO()
 
     if format == "JPEG":
        try:
@@ -308,7 +310,7 @@ def twms_main(data):
         a.write(resp)
         a.close()
       except (OSError, IOError):
-        print >> sys.stderr, "error saving response answer to file %s." % (resp_cache_path)
+        print("error saving response answer to file %s." % (resp_cache_path), file=sys.stderr)
         sys.stderr.flush()
 
     return (OK, content_type, resp)
@@ -429,8 +431,8 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
        bb4.append(correctify.rectify(layer, point))
      bbox_4 = bb4
    bbox = bbox_utils.expand_to_point(bbox, bbox_4)
-   #print bbox
-   #print orig_bbox
+   #print(bbox)
+   #print(orig_bbox)
 
    
    global cached_objs
@@ -452,7 +454,7 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
    bbox_im = (cut_from_x, cut_to_y, 256*(to_tile_x-from_tile_x)+cut_to_x, 256*(from_tile_y-to_tile_y)+cut_from_y )
    x = 256*(to_tile_x-from_tile_x+1)
    y = 256*(from_tile_y-to_tile_y+1)
-   #print >> sys.stderr, x, y
+   #print(x, y, file=sys.stderr)
    #sys.stderr.flush()
    out = Image.new("RGBA", (x, y))
    for x in range (from_tile_x, to_tile_x+1):
@@ -465,11 +467,11 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
          if im1.is_ok:
           cached_objs[(layer["prefix"], zoom, x, y)] = im1
           cached_hist_list.append((layer["prefix"], zoom, x, y))
-          #print >> sys.stderr, (layer["prefix"], zoom, x, y), cached_objs[(layer["prefix"], zoom, x, y)]
+          #print((layer["prefix"], zoom, x, y), cached_objs[(layer["prefix"], zoom, x, y)], file=sys.stderr)
           #sys.stderr.flush()
        if len(cached_objs) >= config.max_ram_cached_tiles:
           del cached_objs[cached_hist_list.pop(0)]
-          #print >> sys.stderr, "Removed tile from cache", 
+          #print("Removed tile from cache", file=sys.stderr)
           #sys.stderr.flush()
      else:
           ec = ImageColor.getcolor(layer.get("empty_color", config.default_background), "RGBA")
