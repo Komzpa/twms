@@ -23,11 +23,13 @@ class GPXParser:
         "\x1f\x8b": lambda f: gzip.GzipFile(f),
         "<?": lambda f: open(f)
       }[signature](filename)
-    except:
+    except (OSError, IOError):
       return
     try:
       doc = minidom.parse(file)
       doc.normalize()
+    except (KeyboardInterrupt, SystemExit):
+      raise
     except:
       return # handle this properly later
     gpx = doc.documentElement

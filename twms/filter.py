@@ -59,7 +59,7 @@ def raster(result_img, filt, bbox = (-999,-999,999,9999), srs="EPSG:3857"):
       ff, tts = ff.split(":")
       try:
         tt = float(tts)
-      except:
+      except ValueError:
         tt = 1
         pass
       if ff == "brightness":
