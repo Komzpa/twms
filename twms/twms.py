@@ -35,8 +35,8 @@ else:
     config_path = os.path.join(os.path.dirname(__file__), "twms.conf")
     config = imp.load_source("twms.config", config_path)
   except:
-    config_path = os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf")
-    config = imp.load_source("config", os.path.join(os.path.realpath(sys.path[0]), "twms", "twms.conf"))
+    config_path = os.path.join(os.path.realpath(sys.path[0]), "twms.conf")
+    config = imp.load_source("config", os.path.join(os.path.realpath(sys.path[0]), "twms.conf"))
   sys.stderr.write("Configuration file not found, using defaults from %s\n" % config_path)
   sys.stderr.flush()
 
