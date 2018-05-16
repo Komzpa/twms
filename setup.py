@@ -11,7 +11,7 @@ is_windows = __platform__ in ['Windows']
 __name__ = "twms"
 
 def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname), encoding='utf-8').read()
+    return open(os.path.join(os.path.dirname(__file__), fname), 'rb').read().decode('utf-8')
 
 def glob(fname):
     return abs_glob(os.path.join(os.path.dirname(__file__), fname))
