@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
@@ -37,7 +38,7 @@ for lay in layers:
          ts = items["v"]
     elif elem.tag == "way":
        ts = items.get("timestamp",ts)
-       print("%s %s %s %s %s %s"% (curway[0][0],curway[0][1],curway[1][0],curway[1][1], user, ts, file=corr)
+       print("%s %s %s %s %s %s"% (curway[0][0],curway[0][1],curway[1][0],curway[1][1], user, ts), file=corr)
        curway = []
        user = default_user
        ts = ""

@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
@@ -21,7 +22,7 @@ for lay in layers:
        nid += 1
        print('<node id="-%s" lon="%s" lat="%s" version="1" />'%(nid, b, a), file=out)
        nid += 1
-       print('<way id="-%s" version="1">'%(wid), file=out)
+       print('<way id="-%s" version="1">'% wid, file=out)
        print(' <nd ref="-%s" />'%(nid-2), file=out)
        print(' <nd ref="-%s" />'%(nid-1), file=out)
        print(' <tag k="%s" v="%s" />"'%("user", user), file=out)
