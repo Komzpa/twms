@@ -19,7 +19,7 @@ try:
 except ImportError:
     import Image, ImageFilter
 
-import urllib2
+import urllib
 from io import BytesIO
 import datetime
 import sys
@@ -109,7 +109,7 @@ class WmsCanvas:
                 remote = self.ConstructTileUrl(x, y)
                 debug(remote)
                 ttz = datetime.datetime.now()
-                contents = urllib2.urlopen(remote).read()
+                contents = urllib.urlopen(remote).read()
                 debug("Download took %s" % str(datetime.datetime.now() - ttz))
                 im = Image.open(BytesIO(contents))
                 if im.mode != self.mode:
