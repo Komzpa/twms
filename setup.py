@@ -10,11 +10,18 @@ is_windows = __platform__ in ['Windows']
 
 __name__ = "twms"
 
+
 def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname), 'rb').read().decode('utf-8')
+    return (
+        open(os.path.join(os.path.dirname(__file__), fname), 'rb')
+        .read()
+        .decode('utf-8')
+    )
+
 
 def glob(fname):
     return abs_glob(os.path.join(os.path.dirname(__file__), fname))
+
 
 def man_path(fname):
     category = fname.rsplit('.', 1)[1]
@@ -23,19 +30,26 @@ def man_path(fname):
 def man_files(pattern):
     return list(map(man_path, glob(pattern)))
 
+
 def config_files():
     if not is_windows:
         return [(os.path.join('/etc', __name__), [os.path.join('twms', 'twms.conf')])]
     else:
         return []
 
+
 # monkey patch setuptools to use distutils owner/group functionality
 from setuptools.command import sdist
+
 sdist_org = sdist.sdist
+
+
 class sdist_new(sdist_org):
     def initialize_options(self):
         sdist_org.initialize_options(self)
         self.owner = self.group = 'root'
+
+
 sdist.sdist = sdist_new
 
 setup(

@@ -15,10 +15,11 @@ from twms import *
 import sys, socket
 
 try:
-        import psyco
-        psyco.full()
+    import psyco
+
+    psyco.full()
 except ImportError:
-        pass
+    pass
 
 OK = 200
 ERROR = 500
@@ -29,15 +30,17 @@ def handler(data):
     A handler for web.py.
     """
     resp, ctype, content = twms_main(data)
-    web.header('Content-Type', ctype)
+    web.header("Content-Type", ctype)
     return content
 
 
-
 urls = (
-      '/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)', 'tilehandler',
-      '/(.*)', 'mainhandler'
+    "/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)",
+    "tilehandler",
+    "/(.*)",
+    "mainhandler",
 )
+
 
 class tilehandler:
     def GET(self, layers, z, x, y, format, rest):
@@ -51,7 +54,7 @@ class tilehandler:
             "format": format.strip("."),
             "z": z,
             "x": x,
-            "y": y
+            "y": y,
         }
         return handler(data)
 
@@ -61,35 +64,40 @@ class mainhandler:
         data = web.input()
         data = dict((k.lower(), data[k]) for k in iter(data))
         if "ref" not in data:
-            if web.ctx.env['HTTP_HOST']:
-                data["ref"] = web.ctx.env['wsgi.url_scheme'] + "://" + web.ctx.env['HTTP_HOST'] + "/"
+            if web.ctx.env["HTTP_HOST"]:
+                data["ref"] = (
+                    web.ctx.env["wsgi.url_scheme"]
+                    + "://"
+                    + web.ctx.env["HTTP_HOST"]
+                    + "/"
+                )
         return handler(data)
-
 
 
 def main():
     try:
-     if sys.argv[1] == "josm":                                  # josm mode 
-      import cgi
-      url, params = sys.argv[2].split("/?", 1)
-      data = cgi.parse_qs(params)
-      for t in data.keys():
-        data[t] = data[t][0]
-      resp, ctype, content = twms_main(data)
-      print(content)
-      exit()
+        if sys.argv[1] == "josm":  # josm mode
+            import cgi
+
+            url, params = sys.argv[2].split("/?", 1)
+            data = cgi.parse_qs(params)
+            for t in data.keys():
+                data[t] = data[t][0]
+            resp, ctype, content = twms_main(data)
+            print(content)
+            exit()
     except IndexError:
-      pass
+        pass
 
     try:
-      app = web.application(urls, globals())
-      app.run()                                                  # standalone run
+        app = web.application(urls, globals())
+        app.run()  # standalone run
     except socket.error:
-      print("Can't open socket. Abort.", file=sys.stderr)
-      sys.exit(1)
+        print("Can't open socket. Abort.", file=sys.stderr)
+        sys.exit(1)
 
 
-application = web.application(urls, globals()).wsgifunc()        # mod_wsgi
+application = web.application(urls, globals()).wsgifunc()  # mod_wsgi
 
 if __name__ == "__main__":
     main()

@@ -8,11 +8,13 @@
 import config
 import projections
 
+
 def get(version, ref):
-   content_type = "text/xml"
-   
-   if version == "1.0.0":
-      req = """
+    content_type = "text/xml"
+
+    if version == "1.0.0":
+        req = (
+            """
 <?xml version="1.0" standalone="no"?>
 <!-- The DTD (Document Type Definition) given here must correspond to the version number declared in the WMT_MS_Capabilities element below. -->
 <!DOCTYPE WMT_MS_Capabilities SYSTEM "http://www2.demis.nl/WMS/capabilities_1_0_0.dtd"
@@ -29,18 +31,24 @@ def get(version, ref):
 
 <!-- end of DOCTYPE declaration -->
 <!-- The version number listed in the WMT_MS_Capabilities element here must correspond to the DTD declared above.  See the WMT specification document for how to respond when a client requests a version number not implemented by the server. -->
-<WMT_MS_Capabilities version=\"""" +str(version)+ """">
+<WMT_MS_Capabilities version=\""""
+            + str(version)
+            + """">
         <Service>
                 <!-- The WMT-defined name for this type of service -->
                 <Name>GetMap</Name>
                 <!-- Human-readable title for pick lists -->
-                <Title>""" + config.wms_name + """</Title>
+                <Title>"""
+            + config.wms_name
+            + """</Title>
                 <!-- Narrative description providing additional information -->
 
                 <Abstract>None</Abstract>
                 <Keywords></Keywords>
                 <!-- Top-level address of service or service provider.  See also onlineResource attributes of <DCPType> children. -->
-                <OnlineResource>"""+ ref +"""</OnlineResource>
+                <OnlineResource>"""
+            + ref
+            + """</OnlineResource>
                 <!-- Fees or access constraints imposed. -->
                 <Fees>none</Fees>
                 <AccessConstraints>none</AccessConstraints>
@@ -59,7 +67,9 @@ def get(version, ref):
                                 <DCPType>
                                         <HTTP>
                                                 <!-- The URL here for HTTP GET requests includes only the prefix before the query string.-->
-                                                <Get onlineResource=\"""" + ref + """?"/>
+                                                <Get onlineResource=\""""
+            + ref
+            + """?"/>
                                         </HTTP>
                                 </DCPType>
                         </Map>
@@ -71,7 +81,9 @@ def get(version, ref):
                                 <DCPType>
                                         <HTTP>
                                                 <!-- The URL here for HTTP GET requests includes only the prefix before the query string.-->
-                                                <Get onlineResource=\"""" + ref + """?"/>
+                                                <Get onlineResource=\""""
+            + ref
+            + """?"/>
                                         </HTTP>
                                 </DCPType>
 
@@ -86,62 +98,74 @@ def get(version, ref):
                         </Format>
                 </Exception>
                 <Layer>
-                        <Title>""" + config.wms_name + """</Title>
+                        <Title>"""
+            + config.wms_name
+            + """</Title>
                         <Abstract/>"""
-      pset = set(projections.projs.keys())
-      pset = pset.union(set(projections.proj_alias.keys()))
-      for proj in pset:
-           req += "<SRS>%s</SRS>" % proj
-      req += """<LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
+        )
+        pset = set(projections.projs.keys())
+        pset = pset.union(set(projections.proj_alias.keys()))
+        for proj in pset:
+            req += "<SRS>%s</SRS>" % proj
+        req += """<LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
                         <BoundingBox SRS="EPSG:4326" minx="-184" miny="85.0511287798" maxx="180" maxy="85.0511287798"/>
 """
-      
-      lala = """<Layer queryable="1">
+
+        lala = """<Layer queryable="1">
                                 <Name>%s</Name>
                                 <Title>%s</Title>
                                 <BoundingBox SRS="EPSG:4326" minx="%s" miny="%s" maxx="%s" maxy="%s"/>
                                 <ScaleHint min="0" max="124000"/>
                         </Layer>"""
-      for i in config.layers.keys():
-          b = config.layers[i].get("bbox", config.default_bbox)
-          req += lala%(i,config.layers[i]["name"],b[0],b[1],b[2],b[3])
+        for i in config.layers.keys():
+            b = config.layers[i].get("bbox", config.default_bbox)
+            req += lala % (i, config.layers[i]["name"], b[0], b[1], b[2], b[3])
 
-      req += """          </Layer>
+        req += """          </Layer>
         </Capability>
 </WMT_MS_Capabilities>"""
 
-
-
-
-
-   else:
-      content_type = "application/vnd.ogc.wms_xml"
-      req = """<?xml version="1.0"?>
+    else:
+        content_type = "application/vnd.ogc.wms_xml"
+        req = (
+            """<?xml version="1.0"?>
 <!DOCTYPE WMT_MS_Capabilities SYSTEM "http://www2.demis.nl/WMS/capabilities_1_1_1.dtd" [
  <!-- Vendor-specific elements are defined here if needed. -->
  <!-- If not needed, just leave this EMPTY declaration.  Do not
   delete the declaration entirely. -->
  <!ELEMENT VendorSpecificCapabilities EMPTY>
  ]>
-<WMT_MS_Capabilities version=\""""+ str(version) +"""">
+<WMT_MS_Capabilities version=\""""
+            + str(version)
+            + """">
         <!-- Service Metadata -->
         <Service>
                 <!-- The WMT-defined name for this type of service -->
                 <Name>twms</Name>
                 <!-- Human-readable title for pick lists -->
-                <Title>""" + config.wms_name + """</Title>
+                <Title>"""
+            + config.wms_name
+            + """</Title>
                 <!-- Narrative description providing additional information -->
                 <Abstract>None</Abstract>
                 <!-- Top-level web address of service or service provider.  See also OnlineResource
   elements under <DCPType>. -->
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\"""" + ref+ """"/>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\""""
+            + ref
+            + """"/>
                 <!-- Contact information -->
                 <ContactInformation>
                         <ContactPersonPrimary>
-                                <ContactPerson>"""+config.contact_person["real_name"]+"""</ContactPerson>
-                                <ContactOrganization>"""+config.contact_person["organization"]+"""</ContactOrganization>
+                                <ContactPerson>"""
+            + config.contact_person["real_name"]
+            + """</ContactPerson>
+                                <ContactOrganization>"""
+            + config.contact_person["organization"]
+            + """</ContactOrganization>
                         </ContactPersonPrimary>
-                        <ContactElectronicMailAddress>"""+config.contact_person["mail"]+"""</ContactElectronicMailAddress>
+                        <ContactElectronicMailAddress>"""
+            + config.contact_person["mail"]
+            + """</ContactElectronicMailAddress>
                 </ContactInformation>
                 <!-- Fees or access constraints imposed. -->
                 <Fees>none</Fees>
@@ -156,7 +180,9 @@ def get(version, ref):
                                                 <Get>
                                                         <!-- The URL here for invoking GetCapabilities using HTTP GET
             is only a prefix to which a query string is appended. -->
-                                                        <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\"""" + ref + """?"/>
+                                                        <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\""""
+            + ref
+            + """?"/>
                                                 </Get>
                                         </HTTP>
                                 </DCPType>
@@ -171,7 +197,9 @@ def get(version, ref):
                                                 <Get>
                                                         <!-- The URL here for invoking GetCapabilities using HTTP GET
             is only a prefix to which a query string is appended. -->
-                                                        <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\"""" + ref + """?"/>
+                                                        <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href=\""""
+            + ref
+            + """?"/>
                                                 </Get>
                                         </HTTP>
                                 </DCPType>
@@ -187,15 +215,16 @@ def get(version, ref):
                 <VendorSpecificCapabilities/>
                 <Layer>
                         <Title>World Map</Title>"""
-      pset = set(projections.projs.keys())
-      pset = pset.union(set(projections.proj_alias.keys()))
-      for proj in pset:
-           req += "<SRS>%s</SRS>" % proj
-      req += """
+        )
+        pset = set(projections.projs.keys())
+        pset = pset.union(set(projections.proj_alias.keys()))
+        for proj in pset:
+            req += "<SRS>%s</SRS>" % proj
+        req += """
                         <LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
                         <BoundingBox SRS="EPSG:4326" minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
 """
-      lala = """
+        lala = """
                         <Layer queryable="0" opaque="1">
                                 <Name>%s</Name>
                                 <Title>%s</Title>
@@ -203,12 +232,12 @@ def get(version, ref):
                                 <ScaleHint min="0" max="124000"/>
                         </Layer>
 """
-      for i in config.layers.keys():
-          b = config.layers[i].get("bbox", config.default_bbox)
-          req += lala%(i,config.layers[i]["name"],b[0],b[1],b[2],b[3])
+        for i in config.layers.keys():
+            b = config.layers[i].get("bbox", config.default_bbox)
+            req += lala % (i, config.layers[i]["name"], b[0], b[1], b[2], b[3])
 
-      req += """          </Layer>
+        req += """          </Layer>
         </Capability>
 </WMT_MS_Capabilities>"""
 
-   return content_type, req
+    return content_type, req

@@ -8,14 +8,14 @@
 from twms import twms
 
 
-if __name__ != '__main__':
- try: 
-  from mod_python import apache, util
-  import datetime  
- except ImportError:
-   pass
+if __name__ != "__main__":
+    try:
+        from mod_python import apache, util
+        import datetime
+    except ImportError:
+        pass
 
- 
+
 def handler(req):
     """
     A handler for mod_python.

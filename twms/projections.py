@@ -10,9 +10,7 @@ try:
     import pyproj
 except ImportError:
     class pyproj:
-
         class Proj:
-
             def __init__(self, pstring):
                 self.pstring = pstring
 
@@ -21,87 +19,81 @@ except ImportError:
                 return c1, c2
             else:
                 raise NotImplementedError(
-                    "Pyproj is not installed - can't convert between projectios. Install pyproj please.")
+                    "Pyproj is not installed - can't convert between projectios. Install pyproj please."
+                )
 
 
 projs = {
     "EPSG:4326": {
-        "proj":
-        pyproj.Proj(
-            "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),
+        "proj": pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "NASA:4326": {
-        "proj":
-        pyproj.Proj(
-            "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),
+        "proj": pyproj.Proj("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"),
         "bounds": (-180.0, -166.0, 332.0, 346.0),
     },
     "EPSG:3395": {
-        "proj":
-        pyproj.Proj(
-            "+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+        "proj": pyproj.Proj(
+            "+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+        ),
         "bounds": (-180.0, -85.0840591556, 180.0, 85.0840590501),
     },
     "EPSG:3857": {
-        "proj":
-        pyproj.Proj(
-            "+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs"),
+        "proj": pyproj.Proj(
+            "+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs"
+        ),
         "bounds": (-180.0, -85.0511287798, 180.0, 85.0511287798),
     },
     "EPSG:32635": {
-        "proj":
-        pyproj.Proj(
-    "+proj=utm +zone=35 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+        "proj": pyproj.Proj(
+            "+proj=utm +zone=35 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+        ),
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32636": {
-        "proj":
-        pyproj.Proj(
-            "+proj=utm +zone=36 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+        "proj": pyproj.Proj(
+            "+proj=utm +zone=36 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+        ),
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32637": {
-        "proj":
-        pyproj.Proj(
-            "+proj=utm +zone=37 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+        "proj": pyproj.Proj(
+            "+proj=utm +zone=37 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+        ),
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32638": {
-        "proj":
-        pyproj.Proj(
-    "+proj=utm +zone=38 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+        "proj": pyproj.Proj(
+            "+proj=utm +zone=38 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+        ),
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32639": {
-        "proj":
-        pyproj.Proj(
-    "+proj=utm +zone=39 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+        "proj": pyproj.Proj(
+            "+proj=utm +zone=39 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+        ),
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32640": {
-        "proj":
-        pyproj.Proj(
-    "+proj=utm +zone=40 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+        "proj": pyproj.Proj(
+            "+proj=utm +zone=40 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+        ),
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32641": {
-        "proj":
-        pyproj.Proj(
-    "+proj=utm +zone=41 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+        "proj": pyproj.Proj(
+            "+proj=utm +zone=41 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+        ),
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
     "EPSG:32642": {
-        "proj":
-        pyproj.Proj(
-            "+proj=utm +zone=42 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"),
+        "proj": pyproj.Proj(
+            "+proj=utm +zone=42 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+        ),
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
 }
-proj_alias = {
-    "EPSG:900913": "EPSG:3857",
-    "EPSG:3785": "EPSG:3857",
-}
+proj_alias = {"EPSG:900913": "EPSG:3857", "EPSG:3785": "EPSG:3857"}
 
 
 def _c4326t3857(t1, t2, lon, lat):
@@ -110,9 +102,12 @@ def _c4326t3857(t1, t2, lon, lat):
     """
     lat_rad = math.radians(lat)
     xtile = lon * 111319.49079327358
-    ytile = math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / \
-        math.pi * 20037508.342789244
-    return(xtile, ytile)
+    ytile = (
+        math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad)))
+        / math.pi
+        * 20037508.342789244
+    )
+    return (xtile, ytile)
 
 
 def _c3857t4326(t1, t2, lon, lat):
@@ -120,9 +115,8 @@ def _c3857t4326(t1, t2, lon, lat):
     Pure python 3857 -> 4326 transform. About 12x faster than pyproj.
     """
     xtile = lon / 111319.49079327358
-    ytile = math.degrees(
-        math.asin(math.tanh(lat / 20037508.342789244 * math.pi)))
-    return(xtile, ytile)
+    ytile = math.degrees(math.asin(math.tanh(lat / 20037508.342789244 * math.pi)))
+    return (xtile, ytile)
 
 
 def _c4326t3395(t1, t2, lon, lat):
@@ -134,9 +128,11 @@ def _c4326t3395(t1, t2, lon, lat):
     F = 53.5865938
     tmp = math.tan(0.78539816339744830962 + math.radians(lat) / 2.0)
     pow_tmp = math.pow(
-        math.tan(0.78539816339744830962 +
-                 math.asin(E * math.sin(math.radians(lat))) / 2.0),
-        E)
+        math.tan(
+            0.78539816339744830962 + math.asin(E * math.sin(math.radians(lat))) / 2.0
+        ),
+        E,
+    )
     x = lon * 111319.49079327358
     y = 6378137.0 * math.log(tmp / pow_tmp)
     return (x, y)
@@ -158,11 +154,14 @@ def _c3395t4326(t1, t2, lon, lat):
     TOL = 1e-7
     i = N_ITER
     dphi = 0.1
-    while ((abs(dphi) > TOL) and (i > 0)):
+    while (abs(dphi) > TOL) and (i > 0):
         i -= 1
         con = eccent * math.sin(Phi)
-        dphi = HALFPI - 2.0 * \
-            math.atan(ts * math.pow((1.0 - con) / (1.0 + con), eccnth)) - Phi
+        dphi = (
+            HALFPI
+            - 2.0 * math.atan(ts * math.pow((1.0 - con) / (1.0 + con), eccnth))
+            - Phi
+        )
         Phi += dphi
 
     x = lon / 111319.49079327358
@@ -202,13 +201,16 @@ def coords_by_tile(z, x, y, srs="EPSG:3857"):
     Converts (z,x,y) to coordinates of corner of srs-projected tile
     """
     z -= 1
-    normalized_tile = (x / (2. ** z), 1. - (y / (2. ** z)))
+    normalized_tile = (x / (2.0 ** z), 1.0 - (y / (2.0 ** z)))
     projected_bounds = from4326(projs[proj_alias.get(srs, srs)]["bounds"], srs)
-    maxp = [projected_bounds[2] - projected_bounds[0],
-            projected_bounds[3] - projected_bounds[1]]
-    projected_coords = [(
-                        normalized_tile[0] * maxp[0]) + projected_bounds[0],
-                        (normalized_tile[1] * maxp[1]) + projected_bounds[1]]
+    maxp = [
+        projected_bounds[2] - projected_bounds[0],
+        projected_bounds[3] - projected_bounds[1],
+    ]
+    projected_coords = [
+        (normalized_tile[0] * maxp[0]) + projected_bounds[0],
+        (normalized_tile[1] * maxp[1]) + projected_bounds[1],
+    ]
     return to4326(projected_coords, srs)
 
 
@@ -224,11 +226,13 @@ def tile_by_coords(xxx_todo_changeme, zoom, srs="EPSG:3857"):
     projected_bounds = from4326(projs[proj_alias.get(srs, srs)]["bounds"], srs)
     point = from4326((lon, lat), srs)
     point = [point[0] - projected_bounds[0], point[1] - projected_bounds[1]]
-        # shifting (0,0)
-    maxp = [projected_bounds[2] - projected_bounds[0],
-            projected_bounds[3] - projected_bounds[1]]
-    point = [1. * point[0] / maxp[0], 1. * point[1] / maxp[1]]
-        # normalizing
+    # shifting (0,0)
+    maxp = [
+        projected_bounds[2] - projected_bounds[0],
+        projected_bounds[3] - projected_bounds[1],
+    ]
+    point = [1.0 * point[0] / maxp[0], 1.0 * point[1] / maxp[1]]
+    # normalizing
     return point[0] * (2 ** zoom), (1 - point[1]) * (2 ** zoom)
 
 
@@ -292,6 +296,7 @@ def transform(line, srs1, srs2):
 
 if __name__ == "__main__":
     import debug
+
     print(_c4326t3857(1, 2, 27.6, 53.2))
     print(from4326((27.6, 53.2), "EPSG:3857"))
     a = _c4326t3857(1, 2, 27.6, 53.2)
