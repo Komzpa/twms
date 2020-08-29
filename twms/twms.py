@@ -634,6 +634,3 @@ def getimg(bbox, request_proj, size, layer, start_time, force):
         out = out.resize((W, H), Image.ANTIALIAS)
     # out = reproject(out, bbox, layer["proj"], request_proj)
     return out
-
-
-import filter
