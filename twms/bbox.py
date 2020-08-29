@@ -81,10 +81,10 @@ def zoom_for_bbox (bbox, size, layer, min_zoom = 1, max_zoom = 18,max_size = (10
    h,w = size
    for i in range (min_zoom,max_zoom):
      cx1, cy1, cx2, cy2 =  projections.tile_by_bbox (bbox, i, layer["proj"])
-     if w is not 0:
+     if w != 0:
       if (cx2-cx1)*256 >= w*0.9 :
        return i
-     if h is not 0:
+     if h != 0:
       if (cy1-cy2)*256 >= h*0.9:
        return i
      if (cy1-cy2)*256 >= max_size[0]/2:

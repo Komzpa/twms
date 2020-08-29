@@ -500,7 +500,7 @@ def getimg (bbox, request_proj, size, layer, start_time, force):
      y = (1-(point[1]-bbox[1])/(bbox[3]-bbox[1]))*(out.size[1])
      x = int(round(x))
      y = int(round(y))
-     if (x is not 0 and x is not out.size[0]) or (y is not 0 and y is not out.size[1]):
+     if (x != 0 and x != out.size[0]) or (y != 0 and y != out.size[1]):
        trans_needed = True
      quad.append(x)
      quad.append(y)

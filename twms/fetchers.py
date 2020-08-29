@@ -91,7 +91,7 @@ def WMS (z, x, y, this_layer):
         except (IOError, OSError):
           return None
    im = Image.open(BytesIO(urlopen(wms).read()))
-   if width is not 256 and height is not 256:
+   if width != 256 and height != 256:
     im = im.resize((256,256),Image.ANTIALIAS)
    im = im.convert("RGBA")
    
