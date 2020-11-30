@@ -9,18 +9,19 @@ __platform__ = platform.system()
 is_windows = __platform__ in ['Windows']
 
 __name__ = "twms"
+__dir__ = os.path.dirname(__file__)
 
 
 def read(fname):
     return (
-        open(os.path.join(os.path.dirname(__file__), fname), 'rb')
+        open(os.path.join(__dir__, fname), 'rb')
         .read()
         .decode('utf-8')
     )
 
 
 def glob(fname):
-    return abs_glob(os.path.join(os.path.dirname(__file__), fname))
+    return [os.path.relpath(x, __dir__) for x in abs_glob(os.path.join(__dir__, fname))])
 
 
 def man_path(fname):
