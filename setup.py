@@ -21,7 +21,7 @@ def read(fname):
 
 
 def glob(fname):
-    return [os.path.relpath(x, __dir__) for x in abs_glob(os.path.join(__dir__, fname))])
+    return [os.path.relpath(x, __dir__) for x in abs_glob(os.path.join(__dir__, fname))]
 
 
 def man_path(fname):
