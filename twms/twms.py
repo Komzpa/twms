@@ -82,6 +82,9 @@ def twms_main(data):
     data - dictionary of params. 
     returns (error_code, content_type, resp)
     """
+    # import the filter here due to a circular dependency
+    # TODO: break the loop
+    import filter
 
     start_time = datetime.datetime.now()
 
@@ -517,6 +520,10 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
 
 
 def getimg(bbox, request_proj, size, layer, start_time, force):
+    # import the filter here due to a circular dependency
+    # TODO: break the loop
+    import filter
+
     orig_bbox = bbox
     # Making 4-corner maximal bbox
     bbox_p = projections.from4326(bbox, request_proj)
