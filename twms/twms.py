@@ -6,21 +6,17 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-from __future__ import print_function, division
-
-try:
-    from PIL import Image, ImageOps, ImageColor
-except ImportError:
-    import Image, ImageOps, ImageColor
-
+import datetime
 import imp
-import os
 import math
+import os
 import sys
+import time
 import urllib
 from io import BytesIO
-import time
-import datetime
+
+from PIL import Image, ImageColor, ImageOps
+
 
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
@@ -45,18 +41,18 @@ else:
     sys.stderr.flush()
 
 
-import correctify
-import capabilities
-import fetchers
-
 # import config
 import bbox
 import bbox as bbox_utils
-import projections
+import capabilities
+import correctify
 import drawing
+import fetchers
 import overview
+import projections
 from gpxparse import GPXParser
 from reproject import reproject
+
 
 try:
     import psyco

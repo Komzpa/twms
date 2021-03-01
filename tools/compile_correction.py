@@ -4,7 +4,9 @@ from __future__ import print_function
 
 import os
 import sys
+
 from lxml import etree
+
 
 tiles_cache = "/var/www/latlon/wms/cache/"
 layers = ["irs", "yhsat", "DGsat", "yasat", "SAT"]

@@ -8,11 +8,13 @@
 
 from __future__ import print_function
 
-import web
+import socket
 import sys
+
+import web
+
 from twms import *
 
-import sys, socket
 
 try:
     import psyco

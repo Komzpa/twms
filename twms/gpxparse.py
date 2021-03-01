@@ -5,8 +5,12 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-import sys, string, bz2, gzip, os
-from xml.dom import minidom, Node
+import bz2
+import gzip
+import os
+import string
+import sys
+from xml.dom import Node, minidom
 
 
 class GPXParser:

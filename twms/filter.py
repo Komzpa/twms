@@ -5,10 +5,8 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-try:
-    from PIL import Image, ImageFilter, ImageEnhance, ImageOps
-except ImportError:
-    import Image, ImageFilter, ImageEnhance, ImageOps
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+
 
 try:
     import numpy
@@ -17,7 +15,9 @@ try:
 except ImportError:
     NUMPY_AVAILABLE = False
 import datetime
+
 from twms import getimg
+
 
 try:
     import config

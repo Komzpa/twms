@@ -6,6 +6,7 @@
 
 import math
 
+
 try:
     import pyproj
 except ImportError:

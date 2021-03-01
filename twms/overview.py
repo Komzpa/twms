@@ -5,8 +5,8 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-from config import *
 import projections
+from config import *
 
 
 def html(ref):

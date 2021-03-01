@@ -5,19 +5,16 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-try:
-    from PIL import Image, ImageDraw, ImageColor, ImageFont
-except ImportError:
-    import Image, ImageDraw, ImageColor, ImageFont
-
-import urllib
-import os, sys
 import array
-
-import projections
-import config
-from gpxparse import GPXParser
 import math
+import os
+import sys
+import urllib
+
+import config
+import projections
+from gpxparse import GPXParser
+from PIL import Image, ImageColor, ImageDraw, ImageFont
 
 
 HAVE_CAIRO = True

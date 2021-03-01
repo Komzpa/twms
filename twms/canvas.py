@@ -12,18 +12,14 @@
 ##
 
 
-import projections
-
-try:
-    from PIL import Image, ImageFilter
-except ImportError:
-    import Image, ImageFilter
-
-import urllib
-from io import BytesIO
 import datetime
 import sys
 import threading
+import urllib
+from io import BytesIO
+
+import projections
+from PIL import Image, ImageFilter
 
 
 def debug(st):

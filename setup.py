@@ -3,7 +3,9 @@
 import os
 import platform
 from glob import glob as abs_glob
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
+
 
 __platform__ = platform.system()
 is_windows = __platform__ in ['Windows']
@@ -41,6 +43,7 @@ def config_files():
 
 # monkey patch setuptools to use distutils owner/group functionality
 from setuptools.command import sdist
+
 
 sdist_org = sdist.sdist
 

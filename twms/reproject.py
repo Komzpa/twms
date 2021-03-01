@@ -5,13 +5,10 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-try:
-    from PIL import Image
-except ImportError:
-    import Image
+import sys
 
 import projections
-import sys
+from PIL import Image
 
 
 def reproject(image, bbox, srs_from, srs_to):

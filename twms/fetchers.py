@@ -5,24 +5,18 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-from urllib.request import urlopen
 import filecmp
-import time
-import os
 import math
+import os
 import sys
-from io import BytesIO
-
-try:
-    from PIL import Image
-except ImportError:
-    import Image
-
+import threading
 import time
+from io import BytesIO
+from urllib.request import urlopen
 
 import config
 import projections
-import threading
+from PIL import Image
 
 
 fetching_now = {}

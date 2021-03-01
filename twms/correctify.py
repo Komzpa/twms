@@ -5,9 +5,10 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-import projections
 import os
+
 import config
+import projections
 
 
 distance = lambda z, x, y, g: ((z - y) ** 2 + (x - g) ** 2) ** (0.5)
