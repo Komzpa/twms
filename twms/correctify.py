@@ -11,7 +11,8 @@ import config
 import projections
 
 
-distance = lambda z, x, y, g: ((z - y) ** 2 + (x - g) ** 2) ** (0.5)
+def distance(z, x, y, g):
+    return ((z - y) ** 2 + (x - g) ** 2) ** (0.5)
 
 
 def has_corrections(layer):

@@ -15,9 +15,7 @@ import time
 import urllib
 from io import BytesIO
 
-from PIL import Image, ImageColor, ImageOps
-
-
+# import config
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 config_path = "/etc/twms/twms.conf"
@@ -40,17 +38,16 @@ else:
     )
     sys.stderr.flush()
 
-
-# import config
 import bbox
-import bbox as bbox_utils
 import capabilities
 import correctify
 import drawing
 import fetchers
 import overview
 import projections
+from bbox import expand_to_point, zoom_for_bbox
 from gpxparse import GPXParser
+from PIL import Image, ImageColor, ImageOps
 from reproject import reproject
 
 
@@ -302,7 +299,7 @@ def twms_main(data):
             result_img = Image.blend(im2, result_img, 0.5)
         imgs += 1.0
 
-    ##Applying filters
+    # Applying filters
     result_img = filter.raster(result_img, filt, req_bbox, srs)
 
     # print(wkt, file=sys.stderr)
@@ -356,7 +353,7 @@ def twms_main(data):
             quality=config.output_quality,
             progressive=config.output_progressive,
         )
-    else:  ## workaround for GIF
+    else:  # workaround for GIF
         result_img = result_img.convert("RGB")
         result_img.save(
             image_content,
@@ -521,7 +518,7 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
 
 def getimg(bbox, request_proj, size, layer, start_time, force):
     orig_bbox = bbox
-    ## Making 4-corner maximal bbox
+    # Making 4-corner maximal bbox
     bbox_p = projections.from4326(bbox, request_proj)
     bbox_p = projections.to4326(
         (bbox_p[2], bbox_p[1], bbox_p[0], bbox_p[3]), request_proj
@@ -538,9 +535,7 @@ def getimg(bbox, request_proj, size, layer, start_time, force):
         for point in bbox_4:
             bb4.append(correctify.rectify(layer, point))
         bbox_4 = bb4
-    bbox = bbox_utils.expand_to_point(bbox, bbox_4)
-    # print(bbox)
-    # print(orig_bbox)
+    bbox = expand_to_point(bbox, bbox_4)
 
     global cached_objs
     H, W = size
@@ -548,7 +543,7 @@ def getimg(bbox, request_proj, size, layer, start_time, force):
     max_zoom = layer.get("max_zoom", config.default_max_zoom)
     min_zoom = layer.get("min_zoom", 1)
 
-    zoom = bbox_utils.zoom_for_bbox(
+    zoom = zoom_for_bbox(
         bbox, size, layer, min_zoom, max_zoom, (config.max_height, config.max_width)
     )
     lo1, la1, lo2, la2 = bbox
@@ -600,7 +595,7 @@ def getimg(bbox, request_proj, size, layer, start_time, force):
     if "filter" in layer:
         out = filter.raster(out, layer["filter"], orig_bbox, request_proj)
 
-    ## TODO: Here's a room for improvement. we could drop this crop in case user doesn't need it.
+    # TODO: Here's a room for improvement. we could drop this crop in case user doesn't need it.
     out = out.crop(bbox_im)
     if "noresize" not in force:
         if (H == W) and (H == 0):
