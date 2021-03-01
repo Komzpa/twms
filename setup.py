@@ -55,42 +55,10 @@ sdist.sdist = sdist_new
 
 setup(
     name = __name__,
-    version = "0.06y",
-    author = 'Darafei Praliaskoiski',
-    author_email = 'me@komzpa.net',
-    url = 'https://github.com/komzpa/twms',
-    description = 'tiny web map service',
-    long_description = read('README.md'),
-    license = 'Public Domain or ISC',
-    packages = find_packages(),
-    install_requires = ['Pillow', 'web.py'],
-    extras_require = {
-        'proj': ['pyproj'],
-        'cairo': ['pycairo'],
-    },
-    classifiers = [
-        'Development Status :: 5 - Production/Stable',
-        'Environment :: Web Environment',
-        'Intended Audience :: Developers',
-        'Intended Audience :: End Users/Desktop',
-        'License :: Public Domain',
-        'Operating System :: OS Independent',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.6',
-        'Topic :: Internet :: WWW/HTTP',
-        'Topic :: Scientific/Engineering :: GIS',
-    ],
-    include_package_data = True,
     data_files = [
         (os.path.join('share', 'doc', __name__), ['COPYING']),
         (os.path.join('share', 'doc', __name__), glob('*.md')),
         (os.path.join('share', __name__), glob('*.jpg')),
         (os.path.join('share', __name__, 'tools'), glob(os.path.join('tools', '*.py')))
     ] + man_files('*.1') + config_files(),
-    entry_points = {
-        'console_scripts': [
-            'twms = twms.daemon:main'
-        ]
-    }
 )
