@@ -1751,6 +1751,23 @@ class LegacySmokeTest(unittest.TestCase):
     def test_wsgi_application_imports(self):
         self.assertTrue(callable(twms.daemon.application))
 
+    def test_stdlib_server_startup_banner_lists_client_urls(self):
+        banner = twms.server.startup_banner("", 8080)
+
+        self.assertIn("TWMS server 0.07z listening on 0.0.0.0:8080", banner)
+        self.assertIn("Overview: http://127.0.0.1:8080/", banner)
+        self.assertIn(
+            "WMS: http://127.0.0.1:8080/wms?SERVICE=WMS&REQUEST=GetCapabilities",
+            banner,
+        )
+        self.assertIn(
+            "WMTS: http://127.0.0.1:8080/wmts/1.0.0/WMTSCapabilities.xml",
+            banner,
+        )
+        self.assertIn("JOSM imagery: http://127.0.0.1:8080/josm/maps.xml", banner)
+        self.assertNotIn("Cookie", banner)
+        self.assertNotIn("headers", banner.lower())
+
     def test_stdlib_server_serves_wms_and_gettile(self):
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), twms.server.TWMSRequestHandler)
         thread = threading.Thread(target=httpd.serve_forever)
@@ -1763,6 +1780,7 @@ class LegacySmokeTest(unittest.TestCase):
             ) as response:
                 body = response.read().decode("utf-8")
                 self.assertEqual(response.status, 200)
+                self.assertIn("twms/0.07z", response.headers["Server"])
                 self.assertIn("application/vnd.ogc.wms_xml", response.headers["Content-Type"])
                 self.assertIn("<WMT_MS_Capabilities", body)
 

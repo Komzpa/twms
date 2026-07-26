@@ -8,10 +8,11 @@
 
 import re
 import sys
+import textwrap
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from twms import twms_main
+from twms import __version__, twms_main
 
 
 tile_route = re.compile(r"/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
@@ -32,6 +33,28 @@ def request_url(handler):
     if not host:
         host = "%s:%s" % handler.server.server_address[:2]
     return "%s://%s/" % (scheme, host)
+
+
+def startup_banner(bind_host, port):
+    url_host = bind_host
+    if not url_host or url_host in ("0.0.0.0", "::"):
+        url_host = "127.0.0.1"
+    base = "http://%s:%s" % (url_host, port)
+    return textwrap.dedent(
+        """\
+        TWMS server {version} listening on {bind_host}:{port}
+        Overview: {base}/
+        WMS: {base}/wms?SERVICE=WMS&REQUEST=GetCapabilities
+        WMTS: {base}/wmts/1.0.0/WMTSCapabilities.xml
+        JOSM imagery: {base}/josm/maps.xml
+        Press Ctrl-C to stop
+        """
+    ).format(
+        version=__version__,
+        bind_host=bind_host or "0.0.0.0",
+        port=port,
+        base=base,
+    ).rstrip()
 
 
 def _tile_data(match):
@@ -89,7 +112,7 @@ def dispatch(path, ref=None):
 
 
 class TWMSRequestHandler(BaseHTTPRequestHandler):
-    server_version = "twms"
+    server_version = "twms/%s" % __version__
 
     def do_GET(self):
         status, content_type, content = dispatch(self.path, request_url(self))
@@ -109,13 +132,14 @@ class TWMSRequestHandler(BaseHTTPRequestHandler):
 
 
 def main():
+    host = ""
     try:
         port = int(sys.argv[1])
     except IndexError:
         port = 8080
 
-    server = ThreadingHTTPServer(("", port), TWMSRequestHandler)
-    print("TWMS server listening on port %s" % port)
+    server = ThreadingHTTPServer((host, port), TWMSRequestHandler)
+    print(startup_banner(host, port))
     server.serve_forever()
 
 
