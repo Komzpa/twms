@@ -14,6 +14,7 @@ import threading
 import time
 from io import BytesIO
 from urllib.error import HTTPError
+from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 import config
@@ -61,11 +62,38 @@ def _upstream_timeout(this_layer):
     )
 
 
+def _upstream_retries(this_layer):
+    return max(
+        1,
+        int(this_layer.get("upstream_retries", getattr(config, "upstream_retries", 1))),
+    )
+
+
+def _upstream_retry_delay(this_layer):
+    return float(
+        this_layer.get(
+            "upstream_retry_delay", getattr(config, "upstream_retry_delay", 0)
+        )
+    )
+
+
 def _read_upstream(url, this_layer):
-    return urlopen(
-        _upstream_request(url, this_layer),
-        timeout=_upstream_timeout(this_layer),
-    ).read()
+    attempts = _upstream_retries(this_layer)
+    for attempt in range(attempts):
+        try:
+            return urlopen(
+                _upstream_request(url, this_layer),
+                timeout=_upstream_timeout(this_layer),
+            ).read()
+        except HTTPError:
+            raise
+        except (OSError, URLError):
+            if attempt + 1 == attempts:
+                raise
+            delay = _upstream_retry_delay(this_layer)
+            if delay:
+                time.sleep(delay)
+
 
 
 def _outside_zoom_limits(z, this_layer):

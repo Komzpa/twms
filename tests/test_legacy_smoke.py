@@ -717,6 +717,61 @@ class LegacySmokeTest(unittest.TestCase):
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 
+    def test_tile_fetch_retries_transient_upstream_error(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "retry",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+                "upstream_retries": 2,
+            }
+            try:
+                path = self.cache_path(cache_root, layer, 2, 3, 4)
+                response = mock.Mock()
+                response.read.return_value = self.image_bytes((11, 22, 33, 255))
+                with mock.patch(
+                    "twms.fetchers.urlopen",
+                    side_effect=[OSError("temporary"), response],
+                ) as urlopen:
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                self.assertEqual(urlopen.call_count, 2)
+                self.assertEqual(image.getpixel((0, 0)), (11, 22, 33, 255))
+                self.assertTrue(os.path.exists(path))
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_tile_fetch_does_not_retry_http_tne_status(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "retry-http-tne",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+                "upstream_retries": 3,
+            }
+            try:
+                path = self.cache_path(cache_root, layer, 2, 3, 4)
+                tne_path = path[:-3] + "tne"
+                error = urllib.error.HTTPError(
+                    url="http://example.test/2/3/4.png",
+                    code=404,
+                    msg="Not Found",
+                    hdrs={},
+                    fp=None,
+                )
+                with mock.patch("twms.fetchers.urlopen", side_effect=error) as urlopen:
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                urlopen.assert_called_once()
+                self.assertFalse(image)
+                self.assertTrue(os.path.exists(tne_path))
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
     def test_tile_cache_tne_suppresses_fetch_until_ttl_expires(self):
         with tempfile.TemporaryDirectory() as cache_root:
             old_cache = twms.fetchers.config.tiles_cache

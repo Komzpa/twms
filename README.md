@@ -62,6 +62,9 @@ Important settings:
 - `upstream_timeout`: default upstream HTTP timeout in seconds; the example
   config uses 30 seconds so threaded servers do not wait forever on a stalled
   tile source
+- `upstream_retries` / `upstream_retry_delay`: optional retry budget for
+  transient upstream network errors. The default is one attempt, preserving the
+  historical no-retry behavior; layers can opt in with their own values.
 - `default_layers`: layer list used when a request does not name layers
 - `default_format`: output image MIME type, usually `image/jpeg`
 - `layers`: configured imagery layers and their fetchers
@@ -82,6 +85,10 @@ Layer dictionaries usually define:
 - `timeout`: optional per-layer upstream HTTP timeout in seconds; set to
   `None` only if an old deployment deliberately wants the historical unbounded
   wait
+- `upstream_retries` / `upstream_retry_delay`: optional per-layer retry
+  override for temporary network failures. HTTP errors such as 404 are still
+  handled by the cache/TNE rules instead of being retried as generic transport
+  failures.
 - `min_zoom` / `max_zoom`: optional zoom limits
 - `cache_ttl`: optional fresh-cache lifetime in seconds
 - `cache_layout`: optional cache path layout; the default is TWMS'
