@@ -1,12 +1,16 @@
 import importlib
 import importlib.metadata
 from io import BytesIO
+import threading
 import unittest
+import urllib.request
+from http.server import ThreadingHTTPServer
 
 from PIL import Image
 
 import twms
 import twms.daemon
+import twms.server
 import twms.twms
 
 
@@ -74,6 +78,33 @@ class LegacySmokeTest(unittest.TestCase):
 
     def test_wsgi_application_imports(self):
         self.assertTrue(callable(twms.daemon.application))
+
+    def test_stdlib_server_serves_wms_and_gettile(self):
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), twms.server.TWMSRequestHandler)
+        thread = threading.Thread(target=httpd.serve_forever)
+        thread.daemon = True
+        thread.start()
+        base = "http://127.0.0.1:%s" % httpd.server_address[1]
+        try:
+            with urllib.request.urlopen(
+                base + "/?request=GetCapabilities&version=1.1.1"
+            ) as response:
+                body = response.read().decode("utf-8")
+                self.assertEqual(response.status, 200)
+                self.assertIn("application/vnd.ogc.wms_xml", response.headers["Content-Type"])
+                self.assertIn("<WMT_MS_Capabilities", body)
+
+            with urllib.request.urlopen(base + "/transparent/0/0/0.png") as response:
+                body = response.read()
+                self.assertEqual(response.status, 200)
+                self.assertIn("image/png", response.headers["Content-Type"])
+                with Image.open(BytesIO(body)) as image:
+                    self.assertEqual(image.size, (256, 256))
+                    self.assertEqual(image.mode, "RGBA")
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join()
 
 
 if __name__ == "__main__":
