@@ -351,6 +351,34 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(doc["minzoom"], 0)
         self.assertEqual(doc["maxzoom"], 18)
 
+    def test_tilejson_accepts_layer_bounds_alias(self):
+        old_layers = twms.twms.config.layers
+        twms.twms.config.layers = {
+            "bounded": {
+                "name": "Bounded",
+                "prefix": "bounded",
+                "ext": "png",
+                "proj": "EPSG:3857",
+                "bounds": (1.0, 2.0, 3.0, 4.0),
+            }
+        }
+        try:
+            status, content_type, body = twms.twms.twms_main(
+                {
+                    "request": "GetTileJSON",
+                    "layers": "bounded",
+                    "ref": "http://example.test/",
+                }
+            )
+
+            doc = json.loads(body)
+            self.assertEqual(status, 200)
+            self.assertEqual(content_type, "application/json")
+            self.assertEqual(doc["bounds"], [1.0, 2.0, 3.0, 4.0])
+            self.assertEqual(doc["center"], [2.0, 3.0, 0])
+        finally:
+            twms.twms.config.layers = old_layers
+
     def test_josm_imagery_xml_smoke(self):
         status, content_type, body = twms.twms.twms_main(
             {
@@ -409,6 +437,43 @@ class LegacySmokeTest(unittest.TestCase):
             resource.attrib["template"],
             "http://example.test/wmts/osm/{TileMatrix}/{TileCol}/{TileRow}.png",
         )
+
+    def test_wmts_capabilities_accepts_layer_bounds_alias(self):
+        old_layers = twms.twms.config.layers
+        twms.twms.config.layers = {
+            "bounded": {
+                "name": "Bounded",
+                "prefix": "bounded",
+                "ext": "png",
+                "proj": "EPSG:3857",
+                "bounds": (1.0, 2.0, 3.0, 4.0),
+            }
+        }
+        try:
+            status, content_type, body = twms.twms.twms_main(
+                {
+                    "service": "WMTS",
+                    "request": "GetCapabilities",
+                    "ref": "http://example.test/",
+                }
+            )
+
+            root = ET.fromstring(body)
+            namespaces = {
+                "wmts": "http://www.opengis.net/wmts/1.0",
+                "ows": "http://www.opengis.net/ows/1.1",
+            }
+            bounds = root.find(
+                "./wmts:Contents/wmts:Layer[ows:Identifier='bounded']/ows:WGS84BoundingBox",
+                namespaces,
+            )
+
+            self.assertEqual(status, 200)
+            self.assertEqual(content_type, "text/xml")
+            self.assertEqual(bounds.find("ows:LowerCorner", namespaces).text, "1.0 2.0")
+            self.assertEqual(bounds.find("ows:UpperCorner", namespaces).text, "3.0 4.0")
+        finally:
+            twms.twms.config.layers = old_layers
 
     def test_wmts_kvp_gettile_smoke(self):
         status, content_type, body = twms.twms.twms_main(
@@ -1087,6 +1152,29 @@ class LegacySmokeTest(unittest.TestCase):
 
         self.assertIsNone(image)
         urlopen.assert_not_called()
+
+    def test_legacy_tile_image_accepts_layer_bounds_alias(self):
+        layer = {
+            "prefix": "bounded",
+            "ext": "png",
+            "proj": "EPSG:3857",
+            "bounds": (170.0, -80.0, 171.0, -79.0),
+            "scalable": False,
+            "fetch": twms.fetchers.Tile,
+            "remote_url": "http://example.test/%s/%s/%s.png",
+        }
+
+        with mock.patch("twms.fetchers.fetch") as fetch:
+            image = twms.twms.tile_image(
+                layer,
+                2,
+                0,
+                0,
+                datetime.datetime.now(),
+            )
+
+        self.assertIsNone(image)
+        fetch.assert_not_called()
 
     def test_wms_fetcher_respects_min_zoom(self):
         layer = {

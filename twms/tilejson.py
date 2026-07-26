@@ -25,7 +25,7 @@ def _layer_names(config, layers):
 def _layer_bounds(config, layer):
     return layer.get(
         "data_bounding_box",
-        layer.get("bbox", config.default_bbox),
+        layer.get("bounds", layer.get("bbox", config.default_bbox)),
     )
 
 

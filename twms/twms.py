@@ -95,6 +95,13 @@ def _response_cache_entry(
     return None
 
 
+def _layer_bounds(layer):
+    return layer.get(
+        "data_bounding_box",
+        layer.get("bounds", layer.get("bbox", config.default_bbox)),
+    )
+
+
 def twms_main(data):
     """
     Do main TWMS work. 
@@ -447,7 +454,7 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
         return None
     if not bbox.bbox_is_in(
         projections.bbox_by_tile(z, x, y, layer["proj"]),
-        layer.get("data_bounding_box", config.default_bbox),
+        _layer_bounds(layer),
         fully=False,
     ):
         return None
