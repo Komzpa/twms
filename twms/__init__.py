@@ -29,6 +29,7 @@ __all__ = [
     "canvas",
     "correctify",
     "drawing",
+    "image_compat",
     "projections",
     "reproject",
     "wmts",

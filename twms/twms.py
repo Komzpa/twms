@@ -34,6 +34,7 @@ from bbox import expand_to_point, zoom_for_bbox
 from gpxparse import GPXParser
 from PIL import Image, ImageColor, ImageOps
 from reproject import reproject
+from twms.image_compat import resampling_lanczos
 
 
 try:
@@ -82,7 +83,11 @@ def twms_main(data):
         gpx = []
     wkt = data.get("wkt", "")
     trackblend = float(data.get("trackblend", "0.5"))
-    color = data.get("color", data.get("colour", "")).split(",")
+    colors = [
+        value
+        for value in data.get("color", data.get("colour", "")).split(",")
+        if value
+    ]
     track = False
     tracks = []
     if len(gpx) == 0:
@@ -148,7 +153,7 @@ def twms_main(data):
         points = [a.split(",") for a in points]
         points = [(float(a[0]), float(a[1])) for a in points]
 
-        req.content_type = "text/plain"
+        content_type = "text/plain"
         for lay in layer:
             for point in points:
                 resp += "%s,%s;" % tuple(correctify.rectify(config.layers[lay], point))
@@ -298,13 +303,13 @@ def twms_main(data):
                             ):
                                 sec.add((ec[0] + tr, ec[1] + tg, ec[2] + tb, ec[3]))
             i2l = im2.load()
-            for x in range(0, im2.size[0]):
-                for y in range(0, im2.size[1]):
-                    t = i2l[x, y]
+            for px in range(0, im2.size[0]):
+                for py in range(0, im2.size[1]):
+                    t = i2l[px, py]
                     if t in sec:
-                        i2l[x, y] = (t[0], t[1], t[2], 0)
+                        i2l[px, py] = (t[0], t[1], t[2], 0)
         if not im2.size == result_img.size:
-            im2 = im2.resize(result_img.size, Image.ANTIALIAS)
+            im2 = im2.resize(result_img.size, resampling_lanczos(Image))
         im2 = Image.composite(im2, result_img, im2.split()[3])  # imgs/(imgs+1.))
 
         if "noblend" in force:
@@ -324,15 +329,15 @@ def twms_main(data):
             result_img,
             req_bbox,
             srs,
-            color if len(color) > 0 else None,
+            colors[0] if colors else None,
             trackblend,
         )
     if len(gpx) > 0:
         last_color = None
-        c = iter(color)
+        c = iter(colors)
         for track in tracks:
             try:
-                last_color = c.next()
+                last_color = next(c)
             except StopIteration:
                 pass
             result_img = drawing.gpx(
@@ -479,7 +484,7 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
                                 im.paste(im2, (256, 0))
                                 im.paste(im3, (0, 256))
                                 im.paste(im4, (256, 256))
-                                im = im.resize((256, 256), Image.ANTIALIAS)
+                                im = im.resize((256, 256), resampling_lanczos(Image))
                                 if layer.get("cached", True):
                                     try:
                                         im.save(local + "ups." + ext)
@@ -640,6 +645,6 @@ def getimg(bbox, request_proj, size, layer, start_time, force):
         out = out.transform((W, H), Image.QUAD, quad, Image.BICUBIC)
     elif (W != out.size[0]) or (H != out.size[1]):
         "just resize"
-        out = out.resize((W, H), Image.ANTIALIAS)
+        out = out.resize((W, H), resampling_lanczos(Image))
     # out = reproject(out, bbox, layer["proj"], request_proj)
     return out

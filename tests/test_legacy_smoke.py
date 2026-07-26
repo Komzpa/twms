@@ -1,3 +1,4 @@
+import datetime
 import importlib
 import importlib.metadata
 import hashlib
@@ -17,8 +18,10 @@ from unittest import mock
 from PIL import Image
 
 import twms
+import twms.canvas
 import twms.daemon
 import twms.fetchers
+import twms.filter
 import twms.projections
 import twms.server
 import twms.twms
@@ -53,6 +56,7 @@ class LegacySmokeTest(unittest.TestCase):
             "twms.drawing",
             "twms.filter",
             "twms.gpxparse",
+            "twms.image_compat",
             "twms.overview",
             "twms.projections",
             "twms.reproject",
@@ -150,6 +154,80 @@ class LegacySmokeTest(unittest.TestCase):
         with Image.open(BytesIO(body)) as image:
             self.assertEqual(image.size, (256, 256))
             self.assertEqual(image.mode, "RGBA")
+
+    def test_legacy_getcorrections_without_rectify_file(self):
+        status, content_type, body = twms.twms.twms_main(
+            {
+                "request": "GetCorrections",
+                "layers": "osm",
+                "points": "27.6,53.2",
+            }
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "text/plain")
+        self.assertEqual(body, "27.6,53.2;\n")
+
+    def test_legacy_filter_smoke(self):
+        image = Image.new("RGBA", (2, 1), (10, 20, 30, 255))
+
+        filtered = twms.filter.raster(image, ("swaprb", "brightness:2"))
+
+        self.assertEqual(filtered.getpixel((0, 0)), (60, 40, 20, 255))
+
+    def test_legacy_wkt_drawing_without_color_parameter(self):
+        status, content_type, body = twms.twms.twms_main(
+            {
+                "request": "GetMap",
+                "layers": "transparent",
+                "format": "image/png",
+                "width": "32",
+                "height": "32",
+                "bbox": "-1,-1,1,1",
+                "wkt": "LINESTRING(-1 -1,1 1)",
+            }
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "image/png")
+        with Image.open(BytesIO(body)) as image:
+            self.assertEqual(image.size, (32, 32))
+            self.assertTrue(
+                any(image.getchannel("A").tobytes()),
+                "WKT overlay should draw visible pixels",
+            )
+
+    def test_legacy_canvas_blank_tile_smoke(self):
+        canvas = twms.canvas.WmsCanvas(tile_size=(32, 32))
+
+        canvas.FetchTile(0, 0)
+
+        self.assertEqual(canvas.tiles[(0, 0)]["im"].size, (32, 32))
+        self.assertEqual(canvas.tiles[(0, 0)]["im"].mode, "RGBA")
+
+    def test_getimg_resize_works_with_current_pillow(self):
+        tile = Image.new("RGBA", (256, 256), (1, 2, 3, 255))
+        tile.is_ok = True
+        layer = {
+            "name": "Resize smoke",
+            "prefix": "resize",
+            "proj": "EPSG:3857",
+            "cached": False,
+            "max_zoom": 1,
+        }
+
+        with mock.patch("twms.twms.tile_image", return_value=tile):
+            image = twms.twms.getimg(
+                (-1.0, -1.0, 1.0, 1.0),
+                "EPSG:3857",
+                (32, 32),
+                layer,
+                datetime.datetime.now(),
+                (),
+            )
+
+        self.assertEqual(image.size, (32, 32))
+        self.assertEqual(image.getpixel((0, 0)), (1, 2, 3, 255))
 
     def test_tilejson_smoke(self):
         status, content_type, body = twms.twms.twms_main(

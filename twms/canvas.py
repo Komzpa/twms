@@ -15,7 +15,7 @@
 import datetime
 import sys
 import threading
-import urllib
+from urllib.request import urlopen
 from io import BytesIO
 
 import projections
@@ -105,7 +105,7 @@ class WmsCanvas:
                 remote = self.ConstructTileUrl(x, y)
                 debug(remote)
                 ttz = datetime.datetime.now()
-                contents = urllib.urlopen(remote).read()
+                contents = urlopen(remote).read()
                 debug("Download took %s" % str(datetime.datetime.now() - ttz))
                 im = Image.open(BytesIO(contents))
                 if im.mode != self.mode:
@@ -133,7 +133,7 @@ class WmsCanvas:
                     group=None,
                     target=self.FetchTile,
                     name=None,
-                    args=(self, tile_x, tile_y),
+                    args=(tile_x, tile_y),
                     kwargs={},
                 )
                 self.tiles[(tile_x, tile_y)]["thread"].start()

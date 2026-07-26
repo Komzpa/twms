@@ -18,6 +18,7 @@ from urllib.request import urlopen
 import config
 import projections
 from PIL import Image
+from twms.image_compat import resampling_lanczos
 
 
 fetching_now = {}
@@ -201,7 +202,7 @@ def WMS(z, x, y, this_layer):
                 return stale
             return False
         if width != 256 and height != 256:
-            im = im.resize((256, 256), Image.ANTIALIAS)
+            im = im.resize((256, 256), resampling_lanczos(Image))
         im = im.convert("RGBA")
 
         if this_layer.get("cached", True):
