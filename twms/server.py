@@ -15,7 +15,7 @@ from twms import twms_main
 
 
 tile_route = re.compile(r"/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
-tilejson_route = re.compile(r"/tilejson/(.*)\.json")
+tilejson_route = re.compile(r"/tilejson/(.+)\.json")
 josm_imagery_routes = {"/josm/imagery.xml", "/maps.xml"}
 wmts_capabilities_route = "/wmts/1.0.0/WMTSCapabilities.xml"
 wmts_tile_route = re.compile(
@@ -73,6 +73,8 @@ def dispatch(path, ref=None):
                     "y": match.group(4),
                 }
             else:
+                if not parsed.query and parsed.path not in ("", "/"):
+                    return 404, "text/plain", "Not Found\n"
                 data = dict(urllib.parse.parse_qsl(parsed.query))
                 data = dict((key.lower(), data[key]) for key in data)
 

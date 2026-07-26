@@ -976,6 +976,22 @@ class LegacySmokeTest(unittest.TestCase):
                 with Image.open(BytesIO(body)) as image:
                     self.assertEqual(image.size, (256, 256))
                     self.assertEqual(image.mode, "RGBA")
+
+            with urllib.request.urlopen(
+                base + "/wmts/transparent/0/0/0.png?cache=1"
+            ) as response:
+                body = response.read()
+                self.assertEqual(response.status, 200)
+                self.assertIn("image/png", response.headers["Content-Type"])
+                with Image.open(BytesIO(body)) as image:
+                    self.assertEqual(image.size, (256, 256))
+                    self.assertEqual(image.mode, "RGBA")
+
+            for path in ("/wmts", "/tilejson/.json", "/does-not-exist"):
+                with self.subTest(path=path):
+                    with self.assertRaises(urllib.error.HTTPError) as error:
+                        urllib.request.urlopen(base + path)
+                    self.assertEqual(error.exception.code, 404)
         finally:
             httpd.shutdown()
             httpd.server_close()

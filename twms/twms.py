@@ -234,7 +234,7 @@ def twms_main(data):
                         + config.layers[layer[0]]["prefix"]
                         + "/z%s/%s/x%s/%s/y%s." % (z, x / 1024, x, y / 1024, y)
                     )
-                    ext = config.layers[layer]["ext"]
+                    ext = config.layers[layer[0]]["ext"]
                     adds = ["", "ups."]
                     for add in adds:
                         if os.path.exists(local + add + ext):
