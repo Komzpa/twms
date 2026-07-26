@@ -98,6 +98,11 @@ Layer dictionaries usually define:
   `{ "size": ..., "md5": {...} }` dictionary; dictionaries may also set
   `http_status` for an upstream status code that should be cached as `.tne`
 
+TWMS intentionally does not read browser cookie stores automatically. If a
+private deployment needs a short-lived cookie, copy it into the layer `headers`
+or load it from your own local config code so the server does not gain a
+browser-profile dependency.
+
 ## Client URLs
 
 Assuming the server runs at `http://127.0.0.1:8080/`:
