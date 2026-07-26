@@ -31,4 +31,5 @@ __all__ = [
     "drawing",
     "projections",
     "reproject",
+    "wmts",
 ]

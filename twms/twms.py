@@ -29,6 +29,7 @@ import fetchers
 import overview
 import projections
 import tilejson
+import wmts
 from bbox import expand_to_point, zoom_for_bbox
 from gpxparse import GPXParser
 from PIL import Image, ImageColor, ImageOps
@@ -107,6 +108,19 @@ def twms_main(data):
     req_type = data.get("request", "GetMap")
     version = data.get("version", "1.1.1")
     ref = data.get("ref", config.service_url)
+    if data.get("service", "").lower() == "wmts" and req_type.lower() == "getcapabilities":
+        return (OK, "text/xml", wmts.capabilities(config, ref))
+    if req_type.lower() == "getwmtscapabilities":
+        return (OK, "text/xml", wmts.capabilities(config, ref))
+    if data.get("service", "").lower() == "wmts" and req_type.lower() == "gettile":
+        if "layers" not in data and "layer" in data:
+            data["layers"] = data["layer"]
+        if "z" not in data and "tilematrix" in data:
+            data["z"] = data["tilematrix"]
+        if "x" not in data and "tilecol" in data:
+            data["x"] = data["tilecol"]
+        if "y" not in data and "tilerow" in data:
+            data["y"] = data["tilerow"]
     if req_type == "GetCapabilities":
         content_type, resp = capabilities.get(version, ref)
         return (OK, content_type, resp)

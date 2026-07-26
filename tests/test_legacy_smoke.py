@@ -6,6 +6,7 @@ import threading
 import unittest
 import urllib.request
 from http.server import ThreadingHTTPServer
+import xml.etree.ElementTree as ET
 
 from PIL import Image
 
@@ -32,6 +33,7 @@ class LegacySmokeTest(unittest.TestCase):
             "twms.projections",
             "twms.reproject",
             "twms.sketch",
+            "twms.wmts",
         ]
         for module in modules:
             with self.subTest(module=module):
@@ -97,6 +99,60 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(doc["minzoom"], 0)
         self.assertEqual(doc["maxzoom"], 18)
 
+    def test_wmts_capabilities_smoke(self):
+        status, content_type, body = twms.twms.twms_main(
+            {
+                "service": "WMTS",
+                "request": "GetCapabilities",
+                "ref": "http://example.test/",
+            }
+        )
+
+        root = ET.fromstring(body)
+        namespaces = {
+            "wmts": "http://www.opengis.net/wmts/1.0",
+            "ows": "http://www.opengis.net/ows/1.1",
+        }
+        layer_ids = [
+            element.text
+            for element in root.findall(
+                "./wmts:Contents/wmts:Layer/ows:Identifier",
+                namespaces,
+            )
+        ]
+        resource = root.find(
+            "./wmts:Contents/wmts:Layer[ows:Identifier='osm']/wmts:ResourceURL",
+            namespaces,
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "text/xml")
+        self.assertEqual(root.tag, "{http://www.opengis.net/wmts/1.0}Capabilities")
+        self.assertIn("osm", layer_ids)
+        self.assertEqual(
+            resource.attrib["template"],
+            "http://example.test/wmts/osm/{TileMatrix}/{TileCol}/{TileRow}.png",
+        )
+
+    def test_wmts_kvp_gettile_smoke(self):
+        status, content_type, body = twms.twms.twms_main(
+            {
+                "service": "WMTS",
+                "request": "GetTile",
+                "layer": "transparent",
+                "format": "image/png",
+                "tilematrix": "0",
+                "tilecol": "0",
+                "tilerow": "0",
+            }
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "image/png")
+        with Image.open(BytesIO(body)) as image:
+            self.assertEqual(image.size, (256, 256))
+            self.assertEqual(image.mode, "RGBA")
+
     def test_wsgi_application_imports(self):
         self.assertTrue(callable(twms.daemon.application))
 
@@ -128,6 +184,25 @@ class LegacySmokeTest(unittest.TestCase):
                 self.assertEqual(response.status, 200)
                 self.assertIn("application/json", response.headers["Content-Type"])
                 self.assertEqual(doc["tiles"], [base + "/osm/{z}/{x}/{y}.png"])
+
+            with urllib.request.urlopen(
+                base + "/wmts/1.0.0/WMTSCapabilities.xml"
+            ) as response:
+                root = ET.fromstring(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertIn("text/xml", response.headers["Content-Type"])
+                self.assertEqual(
+                    root.tag,
+                    "{http://www.opengis.net/wmts/1.0}Capabilities",
+                )
+
+            with urllib.request.urlopen(base + "/wmts/transparent/0/0/0.png") as response:
+                body = response.read()
+                self.assertEqual(response.status, 200)
+                self.assertIn("image/png", response.headers["Content-Type"])
+                with Image.open(BytesIO(body)) as image:
+                    self.assertEqual(image.size, (256, 256))
+                    self.assertEqual(image.mode, "RGBA")
         finally:
             httpd.shutdown()
             httpd.server_close()

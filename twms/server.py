@@ -16,6 +16,10 @@ from twms import twms_main
 
 tile_route = re.compile(r"/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
 tilejson_route = re.compile(r"/tilejson/(.*)\.json")
+wmts_capabilities_route = "/wmts/1.0.0/WMTSCapabilities.xml"
+wmts_tile_route = re.compile(
+    r"/wmts/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?"
+)
 
 
 def request_url(handler):
@@ -34,8 +38,13 @@ def dispatch(path, ref=None):
             "request": "GetTileJSON",
             "layers": urllib.parse.unquote(tilejson_match.group(1)),
         }
+    elif parsed.path == wmts_capabilities_route:
+        data = {
+            "request": "GetCapabilities",
+            "service": "WMTS",
+        }
     else:
-        match = tile_route.fullmatch(parsed.path)
+        match = wmts_tile_route.fullmatch(parsed.path)
         if match:
             ext = match.group(5) or ".jpg"
             data = {
@@ -47,8 +56,20 @@ def dispatch(path, ref=None):
                 "y": match.group(4),
             }
         else:
-            data = dict(urllib.parse.parse_qsl(parsed.query))
-            data = dict((key.lower(), data[key]) for key in data)
+            match = tile_route.fullmatch(parsed.path)
+            if match:
+                ext = match.group(5) or ".jpg"
+                data = {
+                    "request": "GetTile",
+                    "layers": match.group(1),
+                    "format": ext.strip(".").lower(),
+                    "z": match.group(2),
+                    "x": match.group(3),
+                    "y": match.group(4),
+                }
+            else:
+                data = dict(urllib.parse.parse_qsl(parsed.query))
+                data = dict((key.lower(), data[key]) for key in data)
 
     if ref and "ref" not in data:
         data["ref"] = ref
