@@ -1,22 +1,43 @@
 import importlib
 import importlib.metadata
+import hashlib
 import json
+import os
 from io import BytesIO
+import tempfile
 import threading
 import unittest
 import urllib.request
 from http.server import ThreadingHTTPServer
 import xml.etree.ElementTree as ET
+from unittest import mock
 
 from PIL import Image
 
 import twms
 import twms.daemon
+import twms.fetchers
 import twms.server
 import twms.twms
 
 
 class LegacySmokeTest(unittest.TestCase):
+    def image_bytes(self, color, image_format="PNG"):
+        buffer = BytesIO()
+        Image.new("RGBA", (256, 256), color).save(buffer, image_format)
+        return buffer.getvalue()
+
+    def cache_path(self, cache_root, layer, z, x, y):
+        return os.path.join(
+            cache_root,
+            layer["prefix"],
+            "z%s" % z,
+            "%s" % (x // 1024),
+            "x%s" % x,
+            "%s" % (y // 1024),
+            "y%s.%s" % (y, layer["ext"]),
+        )
+
     def test_public_version_keeps_keyboard_suffix(self):
         self.assertEqual(twms.__version__, "0.07z")
         self.assertEqual(importlib.metadata.version("twms"), "0.7+z")
@@ -152,6 +173,116 @@ class LegacySmokeTest(unittest.TestCase):
         with Image.open(BytesIO(body)) as image:
             self.assertEqual(image.size, (256, 256))
             self.assertEqual(image.mode, "RGBA")
+
+    def test_tile_cache_uses_fresh_file_without_network(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "ttl",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+                "cache_ttl": 3600,
+            }
+            try:
+                path = self.cache_path(cache_root, layer, 2, 3, 4)
+                os.makedirs(os.path.dirname(path))
+                with open(path, "wb") as cached_tile:
+                    cached_tile.write(self.image_bytes((10, 20, 30, 255)))
+
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                urlopen.assert_not_called()
+                self.assertEqual(image.getpixel((0, 0)), (10, 20, 30, 255))
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_tile_cache_refetches_expired_file_and_keeps_stale_on_error(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "ttl",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+                "cache_ttl": 1,
+            }
+            try:
+                path = self.cache_path(cache_root, layer, 2, 3, 4)
+                os.makedirs(os.path.dirname(path))
+                with open(path, "wb") as cached_tile:
+                    cached_tile.write(self.image_bytes((10, 20, 30, 255)))
+                old_time = 946684800
+                os.utime(path, (old_time, old_time))
+
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = self.image_bytes(
+                        (40, 50, 60, 255)
+                    )
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                urlopen.assert_called_once()
+                self.assertEqual(image.getpixel((0, 0)), (40, 50, 60, 255))
+
+                os.utime(path, (old_time, old_time))
+                with mock.patch("twms.fetchers.urlopen", side_effect=OSError):
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                self.assertEqual(image.getpixel((0, 0)), (40, 50, 60, 255))
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_tile_cache_tne_suppresses_fetch_until_ttl_expires(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "ttl",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+                "cache_ttl": 3600,
+            }
+            try:
+                path = self.cache_path(cache_root, layer, 2, 3, 4)
+                tne_path = path[:-3] + "tne"
+                os.makedirs(os.path.dirname(tne_path))
+                open(tne_path, "wb").close()
+
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                urlopen.assert_not_called()
+                self.assertIsNone(image)
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_dead_tile_dict_is_recorded_as_tne(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            body = self.image_bytes((255, 0, 0, 255))
+            layer = {
+                "prefix": "dead",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+                "dead_tile": {
+                    "size": len(body),
+                    "md5": {hashlib.md5(body).hexdigest()},
+                },
+            }
+            try:
+                path = self.cache_path(cache_root, layer, 2, 3, 4)
+                tne_path = path[:-3] + "tne"
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = body
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                self.assertFalse(image)
+                self.assertFalse(os.path.exists(path))
+                self.assertTrue(os.path.exists(tne_path))
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
 
     def test_wsgi_application_imports(self):
         self.assertTrue(callable(twms.daemon.application))
