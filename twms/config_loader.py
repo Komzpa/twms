@@ -7,6 +7,22 @@ import os
 import sys
 
 
+class LayerConfig(dict):
+    def __init__(self, defaults, values):
+        super().__init__(values)
+        self.defaults = defaults
+
+    def __missing__(self, key):
+        if key in self.defaults:
+            return self.defaults[key]
+        raise KeyError(key)
+
+    def get(self, key, default=None):
+        if key in self:
+            return super().get(key)
+        return self.defaults.get(key, default)
+
+
 def _extension_from_mimetype(mimetype):
     extension = mimetypes.guess_extension(mimetype or "")
     if not extension:
@@ -23,22 +39,31 @@ def _mimetype_from_extension(extension):
     return None
 
 
+def _normalize_format_metadata(layer, default_mimetype=None):
+    if "mimetype" in layer and "ext" not in layer:
+        extension = _extension_from_mimetype(layer["mimetype"])
+        if extension:
+            layer["ext"] = extension
+    if "ext" in layer and "mimetype" not in layer:
+        mimetype = _mimetype_from_extension(layer["ext"])
+        if mimetype:
+            layer["mimetype"] = mimetype
+    if "ext" not in layer and "mimetype" not in layer and default_mimetype:
+        layer["mimetype"] = default_mimetype
+        extension = _extension_from_mimetype(default_mimetype)
+        if extension:
+            layer["ext"] = extension
+
+
 def normalize_layer_metadata(module):
     default_mimetype = getattr(module, "default_format", None)
-    for layer in getattr(module, "layers", {}).values():
-        if "mimetype" in layer and "ext" not in layer:
-            extension = _extension_from_mimetype(layer["mimetype"])
-            if extension:
-                layer["ext"] = extension
-        if "ext" in layer and "mimetype" not in layer:
-            mimetype = _mimetype_from_extension(layer["ext"])
-            if mimetype:
-                layer["mimetype"] = mimetype
-        if "ext" not in layer and "mimetype" not in layer and default_mimetype:
-            layer["mimetype"] = default_mimetype
-            extension = _extension_from_mimetype(default_mimetype)
-            if extension:
-                layer["ext"] = extension
+    layer_defaults = getattr(module, "layer_defaults", None)
+    if isinstance(layer_defaults, dict):
+        _normalize_format_metadata(layer_defaults, default_mimetype)
+    for name, layer in list(getattr(module, "layers", {}).items()):
+        _normalize_format_metadata(layer, default_mimetype)
+        if isinstance(layer_defaults, dict):
+            module.layers[name] = LayerConfig(layer_defaults, layer)
 
 
 def load_config(path):

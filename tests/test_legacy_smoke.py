@@ -79,6 +79,31 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(module.layers["default-format"]["mimetype"], "image/png")
         self.assertEqual(module.layers["default-format"]["ext"], "png")
 
+    def test_layer_metadata_supports_layer_defaults(self):
+        module = type("Config", (), {})()
+        module.layer_defaults = {
+            "mimetype": "image/png",
+            "proj": "EPSG:3857",
+            "cached": False,
+        }
+        module.layers = {
+            "defaulted": {"name": "Defaulted", "prefix": "defaulted"},
+            "override": {"name": "Override", "prefix": "override", "ext": "jpg"},
+        }
+
+        twms.config_loader.normalize_layer_metadata(module)
+
+        defaulted = module.layers["defaulted"]
+        override = module.layers["override"]
+        self.assertNotIn("ext", defaulted)
+        self.assertEqual(defaulted["proj"], "EPSG:3857")
+        self.assertEqual(defaulted.get("mimetype"), "image/png")
+        self.assertEqual(defaulted.get("ext"), "png")
+        self.assertEqual(defaulted.get("cached"), False)
+        self.assertEqual(override["proj"], "EPSG:3857")
+        self.assertEqual(override.get("mimetype"), "image/jpeg")
+        self.assertEqual(override.get("ext"), "jpg")
+
     def test_legacy_modules_import_as_package_modules(self):
         modules = [
             "twms.bbox",
@@ -242,6 +267,27 @@ class LegacySmokeTest(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertEqual(content_type, "text/html")
             self.assertIn("http://example.test/typed/!/!/!.png", body)
+        finally:
+            twms.twms.config.layers = old_config_layers
+            twms.twms.overview.layers = old_overview_layers
+
+    def test_overview_accepts_layer_defaults(self):
+        old_config_layers = twms.twms.config.layers
+        old_overview_layers = twms.twms.overview.layers
+        module = type("Config", (), {})()
+        module.layer_defaults = {"mimetype": "image/png", "proj": "EPSG:3857"}
+        module.layers = {"defaulted": {"name": "Defaulted", "prefix": "defaulted"}}
+        twms.config_loader.normalize_layer_metadata(module)
+        twms.twms.config.layers = module.layers
+        twms.twms.overview.layers = module.layers
+        try:
+            status, content_type, body = twms.twms.twms_main(
+                {"ref": "http://example.test/"}
+            )
+
+            self.assertEqual(status, 200)
+            self.assertEqual(content_type, "text/html")
+            self.assertIn("http://example.test/defaulted/!/!/!.png", body)
         finally:
             twms.twms.config.layers = old_config_layers
             twms.twms.overview.layers = old_overview_layers
@@ -496,6 +542,31 @@ class LegacySmokeTest(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertEqual(content_type, "application/json")
             self.assertEqual(doc["tiles"], ["http://example.test/typed/{z}/{x}/{y}.png"])
+        finally:
+            twms.twms.config.layers = old_layers
+
+    def test_tilejson_accepts_layer_defaults(self):
+        old_layers = twms.twms.config.layers
+        module = type("Config", (), {})()
+        module.layer_defaults = {"mimetype": "image/png", "proj": "EPSG:3857"}
+        module.layers = {"defaulted": {"name": "Defaulted", "prefix": "defaulted"}}
+        twms.config_loader.normalize_layer_metadata(module)
+        twms.twms.config.layers = module.layers
+        try:
+            status, content_type, body = twms.twms.twms_main(
+                {
+                    "request": "GetTileJSON",
+                    "layers": "defaulted",
+                    "ref": "http://example.test/",
+                }
+            )
+
+            doc = json.loads(body)
+            self.assertEqual(status, 200)
+            self.assertEqual(content_type, "application/json")
+            self.assertEqual(
+                doc["tiles"], ["http://example.test/defaulted/{z}/{x}/{y}.png"]
+            )
         finally:
             twms.twms.config.layers = old_layers
 
