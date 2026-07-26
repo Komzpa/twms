@@ -128,7 +128,7 @@ class TileCache:
         if not self.cached:
             return
         tmp_path = self.path + ".tmp.%s" % os.getpid()
-        image.save(tmp_path)
+        image.save(tmp_path, _EXTENSION_FORMATS.get(self.layer["ext"].lower()))
         os.replace(tmp_path, self.path)
         if os.path.exists(self.tne_path):
             os.remove(self.tne_path)

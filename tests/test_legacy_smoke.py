@@ -549,6 +549,30 @@ class LegacySmokeTest(unittest.TestCase):
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 
+    def test_wms_fetcher_caches_downloaded_image(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "wms-cache",
+                "ext": "png",
+                "remote_url": "http://example.test/wms?",
+                "proj": "EPSG:3857",
+            }
+            try:
+                path = self.cache_path(cache_root, layer, 2, 3, 4)
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = self.image_bytes(
+                        (1, 2, 3, 255)
+                    )
+                    image = twms.fetchers.WMS(2, 3, 4, layer)
+
+                self.assertEqual(image.getpixel((0, 0)), (1, 2, 3, 255))
+                self.assertTrue(os.path.exists(path))
+                urlopen.assert_called_once_with(mock.ANY)
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
     def test_configured_http_status_tile_is_recorded_as_tne(self):
         with tempfile.TemporaryDirectory() as cache_root:
             old_cache = twms.fetchers.config.tiles_cache
