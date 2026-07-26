@@ -70,7 +70,8 @@ Common layer keys:
 - `proj`: tile pyramid projection, commonly `EPSG:3857`, `EPSG:3395`, or
   `EPSG:4326`.
 - `min_zoom` / `max_zoom`: layer zoom bounds. `max_zoom` is historically
-  exclusive.
+  exclusive. TileJSON output converts it to the inclusive `maxzoom` value that
+  TileJSON clients expect.
 - `empty_color` / `empty_color_delta`: color treated as transparent when an
   overlay layer is composited.
 - `cache_ttl`: seconds during which cached tiles are fresh.

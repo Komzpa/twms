@@ -7,13 +7,9 @@
 
 import array
 import math
-import os
-import sys
-import urllib
 
 import config
 import projections
-from gpxparse import GPXParser
 from PIL import Image, ImageColor, ImageDraw, ImageFont
 
 
@@ -72,7 +68,11 @@ def render_vector(
     pil_font=None,
 ):
     """
-    Renders a vector geometry on image.
+    Render one already-parsed vector geometry onto an image.
+
+    Coordinates arrive in EPSG:4326, are projected to the request SRS, then
+    mapped into image pixels.  The PIL backend gets integer coordinates because
+    some older Pillow drawing paths dislike subpixels.
     """
     if not color:
         color = config.geometry_color[geometry]
@@ -93,7 +93,6 @@ def render_vector(
     lo1, la1, lo2, la2 = bbox
     coords = projections.from4326(coords, srs)
     W, H = img.size
-    prevcoord = False
     coords = [
         (
             (coord[0] - lo1) * (W - 1) / abs(lo2 - lo1),
@@ -138,8 +137,7 @@ def render_vector(
         img = Image.frombuffer("RGBA", (W, H), surface.get_data(), "raw", "RGBA", 0, 1)
 
     else:
-        "falling back to PIL"
-        coord = [
+        coords = [
             (int(coord[0]), int(coord[1])) for coord in coords
         ]  # PIL dislikes subpixels
         draw = ImageDraw.Draw(img)

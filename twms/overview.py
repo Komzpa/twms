@@ -6,7 +6,10 @@
 # and/or modify it under the terms specified in COPYING.
 
 import projections
-from config import *
+import config
+
+layers = config.layers
+wms_name = config.wms_name
 
 
 def _layer_bounds(layer):
@@ -34,7 +37,8 @@ def html(ref):
     resp += wms_name
     resp += "</h2><table>"
     for i in layers:
-        bbox = _layer_bounds(layers[i])
+        layer = layers[i]
+        bbox = _layer_bounds(layer)
         resp += '<tr><td><img src="'
         resp += (
             ref
@@ -43,14 +47,14 @@ def html(ref):
             + "&amp;bbox=%s,%s,%s,%s" % bbox
             + '&amp;width=200&amp;format=image/png" width="200" /></td><td><h3>'
         )
-        if "provider_url" in layers[i]:
+        if "provider_url" in layer:
             resp += '<a referrerpolicy="no-referrer" href="'
-            resp += layers[i]["provider_url"]
+            resp += layer["provider_url"]
             resp += '">'
-            resp += layers[i]["name"]
+            resp += layer["name"]
             resp += "</a>"
         else:
-            resp += layers[i]["name"]
+            resp += layer["name"]
         resp += (
             "</h3><b>Bounding box:</b> "
             + str(bbox)
@@ -58,7 +62,7 @@ def html(ref):
             % bbox
             + ")<br />"
         )
-        resp += "<b>Projection:</b> " + layers[i]["proj"] + "<br />"
+        resp += "<b>Projection:</b> " + layer["proj"] + "<br />"
         resp += "<b>WMS half-link:</b> " + ref + "?layers=" + i + "&amp;<br />"
         resp += (
             "<b>Tiles URL:</b> "
@@ -66,7 +70,7 @@ def html(ref):
             + ""
             + i
             + "/!/!/!."
-            + _layer_extension(layers[i])
+            + _layer_extension(layer)
             + "<br />"
         )
         resp += "</td></tr>"

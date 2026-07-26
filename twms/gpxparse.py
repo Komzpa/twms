@@ -7,10 +7,7 @@
 
 import bz2
 import gzip
-import os
-import string
-import sys
-from xml.dom import Node, minidom
+from xml.dom import minidom
 
 
 class GPXParser:
@@ -20,23 +17,24 @@ class GPXParser:
         self.trknum = 0
         self.bbox = (999, 999, -999, -999)
         try:
-            file = open(filename)
-            signature = file.read(2)
-            file.close()
-            file = {
-                "BZ": lambda f: bz2.BZ2File(f),
-                "\x1f\x8b": lambda f: gzip.GzipFile(f),
-                "<?": lambda f: open(f),
+            with open(filename, "rb") as probe:
+                signature = probe.read(2)
+            gpx_file = {
+                b"BZ": lambda f: bz2.BZ2File(f),
+                b"\x1f\x8b": lambda f: gzip.GzipFile(f),
+                b"<?": lambda f: open(f, "rb"),
             }[signature](filename)
-        except (OSError, IOError):
+        except (OSError, IOError, KeyError):
             return
         try:
-            doc = minidom.parse(file)
+            doc = minidom.parse(gpx_file)
             doc.normalize()
         except (KeyboardInterrupt, SystemExit):
             raise
-        except:
+        except Exception:
             return  # handle this properly later
+        finally:
+            gpx_file.close()
         gpx = doc.documentElement
         for node in gpx.getElementsByTagName("trk"):
             self.parseTrack(node)
@@ -45,7 +43,7 @@ class GPXParser:
         # name = trk.getElementsByTagName('name')[0].firstChild.data
         name = self.trknum
         self.trknum += 1
-        if not name in self.tracks:
+        if name not in self.tracks:
             self.tracks[name] = {}
         minlat, minlon, maxlat, maxlon = self.bbox
         for trkseg in trk.getElementsByTagName("trkseg"):
@@ -60,14 +58,13 @@ class GPXParser:
                     maxlon = lon
                 if lon < minlon:
                     minlon = lon
-                #    ele = float(trkpt.getElementsByTagName('ele')[0].firstChild.data)
-                rfc3339 = trkpt.getElementsByTagName("time")[0].firstChild.data
                 self.pointnum += 1
                 self.tracks[name][self.pointnum] = {"lat": lat, "lon": lon}
         self.bbox = (minlon, minlat, maxlon, maxlat)
 
     def getTrack(self, name):
-        times = self.tracks[name].keys()
-        times.sort()
+        """Return track points in the original parsed order."""
+
+        times = sorted(self.tracks[name].keys())
         points = [self.tracks[name][time] for time in times]
         return [(point["lon"], point["lat"]) for point in points]

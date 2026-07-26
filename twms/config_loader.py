@@ -8,6 +8,13 @@ import sys
 
 
 class LayerConfig(dict):
+    """Layer mapping that falls back to shared ``layer_defaults``.
+
+    TWMS layer configuration is intentionally plain Python.  This wrapper keeps
+    old ``layer["key"]`` callers working while letting new configs declare
+    common defaults once.
+    """
+
     def __init__(self, defaults, values):
         super().__init__(values)
         self.defaults = defaults
@@ -40,6 +47,8 @@ def _mimetype_from_extension(extension):
 
 
 def _normalize_format_metadata(layer, default_mimetype=None):
+    """Fill matching ``ext``/``mimetype`` fields without overwriting authors."""
+
     if "mimetype" in layer and "ext" not in layer:
         extension = _extension_from_mimetype(layer["mimetype"])
         if extension:
@@ -56,6 +65,8 @@ def _normalize_format_metadata(layer, default_mimetype=None):
 
 
 def _normalize_fetch_metadata(layer):
+    """Resolve tiny string fetcher aliases used by docs and old configs."""
+
     fetch = layer.get("fetch")
     if not isinstance(fetch, str):
         return
@@ -74,6 +85,8 @@ def _normalize_fetch_metadata(layer):
 
 
 def normalize_layer_metadata(module):
+    """Normalize metadata on a loaded config module in place."""
+
     default_mimetype = getattr(module, "default_format", None)
     layer_defaults = getattr(module, "layer_defaults", None)
     if isinstance(layer_defaults, dict):
@@ -87,6 +100,12 @@ def normalize_layer_metadata(module):
 
 
 def load_config(path):
+    """Load a TWMS Python config file and publish it as ``config``.
+
+    Many legacy modules still import ``config`` directly, so the loaded module
+    must be registered under both the package and historical top-level names.
+    """
+
     loader = importlib.machinery.SourceFileLoader("twms.config", path)
     spec = importlib.util.spec_from_loader("twms.config", loader)
     module = importlib.util.module_from_spec(spec)
@@ -98,6 +117,8 @@ def load_config(path):
 
 
 def load_default_config():
+    """Load the first existing config from system, package, then cwd paths."""
+
     if "config" in sys.modules:
         return sys.modules["config"]
 

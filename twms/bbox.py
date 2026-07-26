@@ -5,8 +5,6 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-import sys
-
 import projections
 
 
@@ -26,7 +24,7 @@ def point_is_in(bbox, point):
 
 def bbox_is_in(bbox_outer, bbox_to_check, fully=True):
     """
-    Check whether EPSG:4326 bbox is inside outer
+    Check whether an EPSG:4326 bbox is inside or intersects another bbox.
     """
     bo = normalize(bbox_outer)[0]
     bc = normalize(bbox_to_check)[0]
@@ -42,22 +40,6 @@ def bbox_is_in(bbox_outer, bbox_to_check, fully=True):
                 bo, bc = bc, bo
             return bc[1] <= bo[3]
         return False
-
-        return (
-            ((bo[0] <= bc[0] and bo[2] >= bc[0]) or (bo[0] <= bc[2] and bo[2] >= bc[2]))
-            and (
-                (bo[1] <= bc[1] and bo[3] >= bc[1])
-                or (bo[1] <= bc[3] and bo[3] >= bc[3])
-            )
-            or (
-                (bc[0] <= bo[0] and bc[2] >= bo[0])
-                or (bc[0] <= bo[2] and bc[2] >= bo[2])
-            )
-            and (
-                (bc[1] <= bo[1] and bc[3] >= bo[1])
-                or (bc[1] <= bo[3] and bc[3] >= bo[3])
-            )
-        )
 
 
 def add(b1, b2):
@@ -78,7 +60,11 @@ def expand_to_point(b1, p1):
 
 def normalize(bbox):
     """
-    Normalise EPSG:4326 bbox order. Returns normalized bbox, and whether it was flipped on horizontal axis.
+    Normalise EPSG:4326 bbox order.
+
+    Returns the normalized bbox and whether it was flipped on the vertical
+    coordinate axis. Longitudes may intentionally exceed 180 after wrapping;
+    tile math uses that to represent antimeridian-spanning boxes.
     """
 
     flip_h = False

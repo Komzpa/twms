@@ -21,13 +21,17 @@ from twms.twms import getimg
 
 try:
     import config
-except:
+except ImportError:
     pass
 
 
 def raster(result_img, filt, bbox=(-999, -999, 999, 9999), srs="EPSG:3857"):
     """
-    Applies various filters to image.
+    Apply requested raster filters to an image.
+
+    Filters are applied left-to-right.  Simple filter names mutate only the
+    supplied image; ``name:value`` filters use the value as a numeric argument
+    or, for ``fusion:<layer>``, as the panchromatic source layer name.
     """
     for ff in filt:
         if ff.split(":") == [ff]:
@@ -82,22 +86,15 @@ def raster(result_img, filt, bbox=(-999, -999, 999, 9999), srs="EPSG:3857"):
                     bbox, srs, [b, a], config.layers[tts], datetime.datetime.now(), []
                 )
                 pan_img = pan_img.convert("L")
-                print(pix.dtype)
-                print(pix[..., 1].shape)
 
                 pan = numpy.array(pan_img)
+                intensity = pix[..., 0] + pix[..., 1] + pix[..., 2]
+                intensity[intensity == 0] = 1
 
-                pix[..., 0] = (
-                    pix[..., 0] * pan / (pix[..., 0] + pix[..., 1] + pix[..., 2])
-                )
-                pix[..., 1] = (
-                    pix[..., 1] * pan / (pix[..., 0] + pix[..., 1] + pix[..., 2])
-                )
-                pix[..., 2] = (
-                    pix[..., 2] * pan / (pix[..., 0] + pix[..., 1] + pix[..., 2])
-                )
+                pix[..., 0] = pix[..., 0] * pan / intensity
+                pix[..., 1] = pix[..., 1] * pan / intensity
+                pix[..., 2] = pix[..., 2] * pan / intensity
 
-                print(pix.shape)
                 result_img = Image.fromarray(numpy.uint8(pix))
 
                 result_img = result_img.convert("RGBA")

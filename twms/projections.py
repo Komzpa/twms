@@ -141,8 +141,6 @@ def _c4326t3395(t1, t2, lon, lat):
     Pure python 4326 -> 3395 transform. About 8x faster than pyproj.
     """
     E = 0.0818191908426
-    A = 20037508.342789
-    F = 53.5865938
     tmp = math.tan(0.78539816339744830962 + math.radians(lat) / 2.0)
     pow_tmp = math.pow(
         math.tan(
@@ -312,82 +310,3 @@ def transform(line, srs1, srs2):
         else:
             ans.append(p)
     return ans
-
-
-if __name__ == "__main__":
-    import debug
-
-    print(_c4326t3857(1, 2, 27.6, 53.2))
-    print(from4326((27.6, 53.2), "EPSG:3857"))
-    a = _c4326t3857(1, 2, 27.6, 53.2)
-    print(to4326(a, "EPSG:3857"))
-    print(_c3857t4326(1, 2, a[0], a[1]))
-    print("3395:")
-    print(_c4326t3395(1, 2, 27.6, 53.2))
-    print(from4326((27.6, 53.2), "EPSG:3395"))
-    a = _c4326t3395(1, 2, 27.6, 53.2)
-    print(to4326(a, "EPSG:3395"))
-    print(_c3395t4326(1, 2, a[0], a[1]))
-
-    a = debug.Timer("Pure python 4326<3857")
-    for i in xrange(0, 100000):
-        t = _c3857t4326(1, 2, 3072417.9458943508, 7020078.5326420991)
-    a.stop()
-    a = debug.Timer("TWMS wrapped 4326<3857")
-    for i in xrange(0, 100000):
-        t = to4326((3072417.9458943508, 7020078.5326420991), "EPSG:3857")
-    a.stop()
-    a = debug.Timer("Pyproj unwrapped 4326<3857")
-    pr1 = projs["EPSG:3857"]["proj"]
-    pr2 = projs["EPSG:4326"]["proj"]
-    for i in xrange(0, 100000):
-        t = pyproj.transform(pr1, pr2, 3072417.9458943508, 7020078.5326420991)
-    a.stop()
-
-    a = debug.Timer("Pure python 4326<3395")
-    for i in xrange(0, 100000):
-        t = _c3395t4326(1, 2, 3072417.9458943508, 7020078.5326420991)
-    a.stop()
-    a = debug.Timer("TWMS wrapped 4326<3395")
-    for i in xrange(0, 100000):
-        t = to4326((3072417.9458943508, 7020078.5326420991), "EPSG:3395")
-    a.stop()
-    a = debug.Timer("Pyproj unwrapped 4326<3395")
-    pr1 = projs["EPSG:3395"]["proj"]
-    pr2 = projs["EPSG:4326"]["proj"]
-    for i in xrange(0, 100000):
-        t = pyproj.transform(pr1, pr2, 3072417.9458943508, 7020078.5326420991)
-    a.stop()
-
-    a = debug.Timer("Pure python 4326>3857")
-    for i in xrange(0, 100000):
-        t = _c4326t3857(1, 2, 27.6, 53.2)
-    a.stop()
-    a = debug.Timer("TWMS wrapped 4326>3857")
-    for i in xrange(0, 100000):
-        t = from4326((27.6, 53.2), "EPSG:3857")
-    a.stop()
-    a = debug.Timer("Pyproj unwrapped 4326>3857")
-    pr2 = projs["EPSG:3857"]["proj"]
-
-    pr1 = projs["EPSG:4326"]["proj"]
-    for i in xrange(0, 100000):
-        t = pyproj.transform(pr1, pr2, 27.6, 53.2)
-    a.stop()
-
-    a = debug.Timer("Pure python 4326>3395")
-    for i in xrange(0, 100000):
-        t = _c4326t3395(1, 2, 27.6, 53.2)
-    a.stop()
-    a = debug.Timer("TWMS wrapped 4326>3395")
-    for i in xrange(0, 100000):
-        t = from4326((27.6, 53.2), "EPSG:3395")
-    a.stop()
-    a = debug.Timer("Pyproj unwrapped 4326>3395")
-    pr2 = projs["EPSG:3395"]["proj"]
-    pr1 = projs["EPSG:4326"]["proj"]
-    for i in xrange(0, 100000):
-        t = pyproj.transform(pr1, pr2, 27.6, 53.2)
-    a.stop()
-
-    pass

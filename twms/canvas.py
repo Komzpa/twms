@@ -100,26 +100,30 @@ class WmsCanvas:
 
     def FetchTile(self, x, y):
         if (x, y) in self.tiles:
-            if self.tiles[(x, y)]["status"] == "DL":
-                self.tiles[(x, y)]["thread"].join()
+            tile = self.tiles[(x, y)]
+            if tile["status"] == "RD":
+                return
+            if tile["status"] == "DL" and tile.get("thread") is not threading.current_thread():
+                tile["thread"].join()
+                return
+
+        im = ""
+        if self.wms_url:
+            remote = self.ConstructTileUrl(x, y)
+            debug(remote)
+            ttz = datetime.datetime.now()
+            contents = urlopen(remote, timeout=self.UpstreamTimeout()).read()
+            debug("Download took %s" % str(datetime.datetime.now() - ttz))
+            im = Image.open(BytesIO(contents))
+            if im.mode != self.mode:
+                im = im.convert(self.mode)
         else:
-            im = ""
-            if self.wms_url:
-                remote = self.ConstructTileUrl(x, y)
-                debug(remote)
-                ttz = datetime.datetime.now()
-                contents = urlopen(remote, timeout=self.UpstreamTimeout()).read()
-                debug("Download took %s" % str(datetime.datetime.now() - ttz))
-                im = Image.open(BytesIO(contents))
-                if im.mode != self.mode:
-                    im = im.convert(self.mode)
-            else:
-                im = Image.new(self.mode, (self.tile_width, self.tile_height))
-                debug("blanking tile")
-            self.tiles[(x, y)] = {}
-            self.tiles[(x, y)]["im"] = im
-            self.tiles[(x, y)]["pix"] = im.load()
-            self.tiles[(x, y)]["status"] = "RD"
+            im = Image.new(self.mode, (self.tile_width, self.tile_height))
+            debug("blanking tile")
+        self.tiles[(x, y)] = {}
+        self.tiles[(x, y)]["im"] = im
+        self.tiles[(x, y)]["pix"] = im.load()
+        self.tiles[(x, y)]["status"] = "RD"
 
     def UpstreamTimeout(self):
         if self.timeout != "default":
@@ -135,10 +139,10 @@ class WmsCanvas:
         x = x % self.tile_height
         tile_y = int(y / self.tile_width)
         y = y % self.tile_width
-        if not (tile_x, tile_y):
+        if (tile_x, tile_y) not in self.tiles:
             self.tiles[(tile_x, tile_y)] = {}
             self.tiles[(tile_x, tile_y)]["status"] = "PP"
-        if not "pix" in self.tiles[(tile_x, tile_y)]:
+        if "pix" not in self.tiles[(tile_x, tile_y)]:
             if self.tiles[(tile_x, tile_y)]["status"] == "PP":
                 self.tiles[(tile_x, tile_y)]["status"] = "DL"
                 self.tiles[(tile_x, tile_y)]["thread"] = threading.Thread(

@@ -101,7 +101,8 @@ Layer dictionaries usually define:
   override for temporary network failures. HTTP errors such as 404 are still
   handled by the cache/TNE rules instead of being retried as generic transport
   failures.
-- `min_zoom` / `max_zoom`: optional zoom limits
+- `min_zoom` / `max_zoom`: optional zoom limits; `max_zoom` is TWMS'
+  historical exclusive bound
 - `cache_ttl`: optional fresh-cache lifetime in seconds
 - `cache_layout`: optional cache path layout; the default is TWMS'
   historical grouped layout, while `zxy` stores slippy/MOBAC-style

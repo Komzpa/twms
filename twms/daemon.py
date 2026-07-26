@@ -13,7 +13,7 @@ import sys
 
 import web
 
-from twms import *
+from twms.twms import twms_main
 
 
 try:
@@ -29,7 +29,7 @@ ERROR = 500
 
 def handler(data):
     """
-    A handler for web.py.
+    Handle a normalized web.py request dictionary.
     """
     resp, ctype, content = twms_main(data)
     web.header("Content-Type", ctype)
@@ -44,6 +44,8 @@ urls = (
 
 class tilehandler:
     def GET(self, layers, z, x, y, format, rest):
+        """Serve a legacy /layer/z/x/y.ext tile URL."""
+
         if format is None:
             format = "jpeg"
         else:
@@ -61,6 +63,8 @@ class tilehandler:
 
 class mainhandler:
     def GET(self, crap):
+        """Serve query-string WMS/GetTile requests through web.py."""
+
         data = web.input()
         data = dict((k.lower(), data[k]) for k in iter(data))
         if "ref" not in data:

@@ -44,6 +44,12 @@ def _tile_extension(config, layer_names, format_name):
     return config.default_format.lower().replace("image/", "").replace("jpeg", "jpg")
 
 
+def _requestable_maxzoom(exclusive_maxzoom):
+    """Convert TWMS' historical exclusive max zoom to TileJSON inclusive zoom."""
+
+    return max(0, exclusive_maxzoom - 1)
+
+
 def document(config, layers, ref, format_name=""):
     layer_names = _layer_names(config, layers)
     layer_items = [config.layers[name] for name in layer_names]
@@ -52,7 +58,9 @@ def document(config, layers, ref, format_name=""):
         bounds = bbox.add(bounds, _layer_bounds(config, layer))
 
     minzoom = max(layer.get("min_zoom", 0) for layer in layer_items)
-    maxzoom = min(layer.get("max_zoom", config.default_max_zoom) for layer in layer_items)
+    maxzoom = _requestable_maxzoom(
+        min(layer.get("max_zoom", config.default_max_zoom) for layer in layer_items)
+    )
     center = [
         (bounds[0] + bounds[2]) / 2.0,
         (bounds[1] + bounds[3]) / 2.0,

@@ -5,17 +5,25 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-from bbox import *
+from bbox import point_is_in
 
 
 string = "abcdefghijklmnopqrstuvwxyz012345ABCDEFGHIJKLMNOPQRSTUVWXYZ6789{}"
 
 
 def decode(bbox, sketch):
+    """Decode a sketch string.
+
+    The historical decoder was never completed; keep the stub importable until
+    the sketch URL format gets real users again.
+    """
+
     version, sketch = sketch.split(";", 1)
 
 
 def encode_point(bbox, point, length, length_out=None):
+    """Encode a point relative to a bbox using TWMS' compact sketch alphabet."""
+
     if not length_out:
         length_out = length
     code = "."
@@ -26,7 +34,6 @@ def encode_point(bbox, point, length, length_out=None):
     lon, lat = point
     lon = (lon - bbox[0]) / (bbox[2] - bbox[0])  # normalizing points to bbox
     lat = (lat - bbox[1]) / (bbox[3] - bbox[1])
-    lats, lons = [], []
 
     for i in range(0, length):
         latt = int(lat * 8)
@@ -38,6 +45,8 @@ def encode_point(bbox, point, length, length_out=None):
 
 
 def decode_point(bbox, code):
+    """Decode one compact sketch point back into lon/lat."""
+
     lat, lon = (0, 0)
     if code[0] == ".":
         code = code[1:]

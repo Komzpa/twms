@@ -5,13 +5,12 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-import sys
-
 import projections
-from PIL import Image
 
 
 def reproject(image, bbox, srs_from, srs_to):
+    """Nearest-neighbour reprojection for small legacy raster overlays."""
+
     out = image.copy()
     op = out.load()
     il = image.load()
