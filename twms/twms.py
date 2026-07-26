@@ -232,14 +232,14 @@ def twms_main(data):
                     local = (
                         config.tiles_cache
                         + config.layers[layer[0]]["prefix"]
-                        + "/z%s/%s/x%s/%s/y%s." % (z, x / 1024, x, y / 1024, y)
+                        + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
                     )
                     ext = config.layers[layer[0]]["ext"]
                     adds = ["", "ups."]
                     for add in adds:
                         if os.path.exists(local + add + ext):
-                            tile_file = open(local + add + ext, "r")
-                            resp = tile_file.read()
+                            with open(local + add + ext, "rb") as tile_file:
+                                resp = tile_file.read()
                             return (OK, content_type, resp)
         req_bbox = projections.from4326(projections.bbox_by_tile(z, x, y, srs), srs)
 
@@ -428,7 +428,7 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
         local = (
             config.tiles_cache
             + layer["prefix"]
-            + "/z%s/%s/x%s/%s/y%s." % (z, x / 1024, x, y / 1024, y)
+            + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
         )
         ext = layer["ext"]
         if "cache_ttl" in layer:

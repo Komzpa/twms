@@ -488,6 +488,76 @@ class LegacySmokeTest(unittest.TestCase):
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 
+    def test_legacy_tile_image_reuses_historical_cache_path(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.twms.config.tiles_cache
+            twms.twms.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "legacy-hit",
+                "proj": "EPSG:3857",
+                "ext": "png",
+                "cached": True,
+                "scalable": False,
+                "empty_color": "#000000",
+                "fetch": mock.Mock(return_value=None),
+            }
+            try:
+                path = self.cache_path(cache_root, layer, 3, 3, 3)
+                os.makedirs(os.path.dirname(path))
+                with open(path, "wb") as cached_tile:
+                    cached_tile.write(self.image_bytes((10, 20, 30, 255)))
+
+                image = twms.twms.tile_image(
+                    layer,
+                    3,
+                    3,
+                    3,
+                    datetime.datetime.now(),
+                    real=True,
+                )
+
+                layer["fetch"].assert_not_called()
+                self.assertEqual(image.getpixel((0, 0)), (10, 20, 30, 255))
+            finally:
+                twms.twms.config.tiles_cache = old_cache
+
+    def test_legacy_gettile_fast_cache_reads_binary_tile(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.twms.config.tiles_cache
+            old_layers = twms.twms.config.layers
+            twms.twms.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "legacy-fast-hit",
+                "proj": "EPSG:3857",
+                "ext": "png",
+            }
+            twms.twms.config.layers = {"legacy-fast-hit": layer}
+            try:
+                path = self.cache_path(cache_root, layer, 3, 3, 4)
+                os.makedirs(os.path.dirname(path))
+                with open(path, "wb") as cached_tile:
+                    cached_tile.write(self.image_bytes((10, 20, 30, 255)))
+
+                status, content_type, body = twms.twms.twms_main(
+                    {
+                        "request": "GetTile",
+                        "layers": "legacy-fast-hit",
+                        "format": "image/png",
+                        "z": "2",
+                        "x": "3",
+                        "y": "4",
+                    }
+                )
+
+                self.assertEqual(status, 200)
+                self.assertEqual(content_type, "image/png")
+                self.assertIsInstance(body, bytes)
+                with Image.open(BytesIO(body)) as image:
+                    self.assertEqual(image.getpixel((0, 0)), (10, 20, 30, 255))
+            finally:
+                twms.twms.config.tiles_cache = old_cache
+                twms.twms.config.layers = old_layers
+
     def test_tile_cache_can_use_zxy_layout(self):
         with tempfile.TemporaryDirectory() as cache_root:
             old_cache = twms.fetchers.config.tiles_cache
