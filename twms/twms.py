@@ -58,6 +58,7 @@ formats = {
     "image/jpg": "JPEG",
     "image/png": "PNG",
     "image/bmp": "BMP",
+    "image/webp": "WEBP",
 }
 
 mimetypes = dict(zip(formats.values(), formats.keys()))

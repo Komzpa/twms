@@ -72,7 +72,13 @@ def _wms130(ref):
     )
 
     get_map = ET.SubElement(request, "GetMap")
-    for image_format in ("image/png", "image/jpeg", "image/gif", "image/bmp"):
+    for image_format in (
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/bmp",
+        "image/webp",
+    ):
         ET.SubElement(get_map, "Format").text = image_format
     ET.SubElement(
         ET.SubElement(ET.SubElement(ET.SubElement(get_map, "DCPType"), "HTTP"), "Get"),
@@ -312,6 +318,7 @@ def get(version, ref):
                                 <Format>image/jpeg</Format>
                                 <Format>image/gif</Format>
                                 <Format>image/bmp</Format>
+                                <Format>image/webp</Format>
                                 <DCPType>
                                         <HTTP>
                                                 <Get>

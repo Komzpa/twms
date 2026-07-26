@@ -112,6 +112,7 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(content_type, "application/vnd.ogc.wms_xml")
         self.assertIn("<WMT_MS_Capabilities", body)
         self.assertIn("OpenStreetMap mapnik", body)
+        self.assertIn("<Format>image/webp</Format>", body)
         self.assertNotIn("<SRS>CRS:84</SRS>", body)
 
     def test_wms_130_capabilities_smoke(self):
@@ -159,6 +160,25 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(content_type, "image/png")
         with Image.open(BytesIO(body)) as image:
+            self.assertEqual(image.size, (32, 32))
+
+    def test_wms_getmap_accepts_webp_format(self):
+        status, content_type, body = twms.twms.twms_main(
+            {
+                "request": "GetMap",
+                "layers": "transparent",
+                "format": "image/webp",
+                "width": "32",
+                "height": "32",
+                "srs": "EPSG:3857",
+                "bbox": "-1,-1,1,1",
+            }
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "image/webp")
+        with Image.open(BytesIO(body)) as image:
+            self.assertEqual(image.format, "WEBP")
             self.assertEqual(image.size, (32, 32))
 
     def test_overview_smoke(self):
