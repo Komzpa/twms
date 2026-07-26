@@ -51,6 +51,23 @@ def _upstream_request(url, this_layer):
     return url
 
 
+def _upstream_timeout(this_layer):
+    if "timeout" in this_layer:
+        return this_layer["timeout"]
+    return getattr(
+        config,
+        "upstream_timeout",
+        min(getattr(config, "deadline", 30), 30),
+    )
+
+
+def _read_upstream(url, this_layer):
+    return urlopen(
+        _upstream_request(url, this_layer),
+        timeout=_upstream_timeout(this_layer),
+    ).read()
+
+
 def _outside_zoom_limits(z, this_layer):
     if "min_zoom" in this_layer and z < this_layer["min_zoom"]:
         return True
@@ -238,7 +255,7 @@ def WMS(z, x, y, this_layer):
             return cache.wait_for_peer()
     try:
         try:
-            contents = urlopen(_upstream_request(wms, this_layer)).read()
+            contents = _read_upstream(wms, this_layer)
             im = _open_downloaded_image(contents)
             if im is None:
                 raise OSError
@@ -287,7 +304,7 @@ def Tile(z, x, y, this_layer):
             return cache.wait_for_peer()
     try:
         try:
-            contents = urlopen(_upstream_request(remote, this_layer)).read()
+            contents = _read_upstream(remote, this_layer)
             im = _open_downloaded_image(contents)
             if im is None:
                 raise OSError

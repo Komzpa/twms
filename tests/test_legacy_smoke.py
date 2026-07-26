@@ -628,7 +628,7 @@ class LegacySmokeTest(unittest.TestCase):
 
                 self.assertEqual(image.getpixel((0, 0)), (1, 2, 3, 255))
                 self.assertTrue(os.path.exists(path))
-                urlopen.assert_called_once_with(mock.ANY)
+                urlopen.assert_called_once_with(mock.ANY, timeout=30)
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 
@@ -651,6 +651,7 @@ class LegacySmokeTest(unittest.TestCase):
 
                 url = urlopen.call_args.args[0]
                 self.assertIsInstance(url, str)
+                self.assertEqual(urlopen.call_args.kwargs["timeout"], 30)
                 self.assertTrue(url.startswith("http://example.test/wms?bbox="))
                 self.assertIn("&width=384&height=384&srs=EPSG:3857", url)
             finally:
@@ -678,6 +679,7 @@ class LegacySmokeTest(unittest.TestCase):
 
                 url = urlopen.call_args.args[0]
                 self.assertIsInstance(url, str)
+                self.assertEqual(urlopen.call_args.kwargs["timeout"], 30)
                 self.assertIn("WIDTH=384&HEIGHT=384&CRS=EPSG:3857&BBOX=", url)
                 self.assertNotIn("srs=EPSG:3857", url)
                 self.assertEqual(url.count("BBOX="), 1)
@@ -751,6 +753,7 @@ class LegacySmokeTest(unittest.TestCase):
                 headers = {
                     key.lower(): value for key, value in request.header_items()
                 }
+                self.assertEqual(urlopen.call_args.kwargs["timeout"], 30)
                 self.assertEqual(request.full_url, "http://example.test/2/3/4.png")
                 self.assertEqual(headers["referer"], "https://example.test/map/")
                 self.assertEqual(headers["user-agent"], "twms-test")
@@ -781,9 +784,34 @@ class LegacySmokeTest(unittest.TestCase):
                 headers = {
                     key.lower(): value for key, value in request.header_items()
                 }
+                self.assertEqual(urlopen.call_args.kwargs["timeout"], 30)
                 self.assertTrue(request.full_url.startswith("http://example.test/wms?"))
                 self.assertIn("bbox=", request.full_url)
                 self.assertEqual(headers["referer"], "https://example.test/wms-client/")
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_tile_fetcher_uses_configured_layer_timeout(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "timeout",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+                "timeout": 7,
+            }
+            try:
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = self.image_bytes(
+                        (1, 2, 3, 255)
+                    )
+                    twms.fetchers.Tile(2, 3, 4, layer)
+
+                urlopen.assert_called_once_with(
+                    "http://example.test/2/3/4.png",
+                    timeout=7,
+                )
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 
@@ -833,7 +861,10 @@ class LegacySmokeTest(unittest.TestCase):
                     )
                     twms.fetchers.Tile(2, 3, 4, layer)
 
-                urlopen.assert_called_once_with("http://example.test/3/4/1.png")
+                urlopen.assert_called_once_with(
+                    "http://example.test/3/4/1.png",
+                    timeout=30,
+                )
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 
@@ -854,7 +885,8 @@ class LegacySmokeTest(unittest.TestCase):
                     twms.fetchers.Tile(4, 9, 5, layer)
 
                 urlopen.assert_called_once_with(
-                    "http://example.test/4/9/5/10/1203.png"
+                    "http://example.test/4/9/5/10/1203.png",
+                    timeout=30,
                 )
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
@@ -876,7 +908,10 @@ class LegacySmokeTest(unittest.TestCase):
                     )
                     twms.fetchers.Tile(4, 5, 6, layer)
 
-                urlopen.assert_called_once_with("http://example.test/z3/x6/y8.png")
+                urlopen.assert_called_once_with(
+                    "http://example.test/z3/x6/y8.png",
+                    timeout=30,
+                )
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 

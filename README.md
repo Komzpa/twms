@@ -59,6 +59,9 @@ Important settings:
 - `tiles_cache`: root directory for the filesystem tile cache
 - `gpx_cache`: cache for downloaded OSM GPX traces
 - `service_url`: externally visible base URL used in generated capabilities
+- `upstream_timeout`: default upstream HTTP timeout in seconds; the example
+  config uses 30 seconds so threaded servers do not wait forever on a stalled
+  tile source
 - `default_layers`: layer list used when a request does not name layers
 - `default_format`: output image MIME type, usually `image/jpeg`
 - `layers`: configured imagery layers and their fetchers
@@ -76,6 +79,9 @@ Layer dictionaries usually define:
 - `headers`: optional upstream HTTP request headers, such as `Referer`,
   `User-Agent`, or authentication cookies required by a particular source
 - `fetch`: fetcher function, normally `fetchers.Tile`
+- `timeout`: optional per-layer upstream HTTP timeout in seconds; set to
+  `None` only if an old deployment deliberately wants the historical unbounded
+  wait
 - `min_zoom` / `max_zoom`: optional zoom limits
 - `cache_ttl`: optional fresh-cache lifetime in seconds
 - `cache_layout`: optional cache path layout; the default is TWMS'
