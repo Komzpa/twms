@@ -41,6 +41,11 @@ twms-webpy
 That path is kept for older deployments, including Windows/JOSM proxy
 bundles that depended on `web.py`.
 
+On GitHub, CI builds Windows executable artifacts for both entry points:
+
+- `twms.exe`
+- `twms-webpy.exe`
+
 ## Configuration
 
 twms loads Python configuration from:

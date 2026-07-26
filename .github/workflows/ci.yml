@@ -5,7 +5,12 @@ on:
     branches:
       - master
       - "ai/**"
+    tags:
+      - "*"
   pull_request:
+  release:
+    types:
+      - published
   workflow_dispatch:
 
 jobs:
@@ -55,3 +60,49 @@ jobs:
 
       - name: Build source and wheel distributions
         run: python -m build
+
+  windows-exe:
+    name: Windows executable artifact
+    runs-on: windows-latest
+    needs: package-smoke
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build tools
+        run: python -m pip install --upgrade pip pyinstaller
+
+      - name: Install package
+        run: python -m pip install -e .
+
+      - name: Write PyInstaller entry points
+        shell: pwsh
+        run: |
+          @'
+          from twms.server import main
+
+          if __name__ == "__main__":
+              main()
+          '@ | Set-Content -Encoding UTF8 twms-stdlib-entry.py
+
+          @'
+          from twms.daemon import main
+
+          if __name__ == "__main__":
+              main()
+          '@ | Set-Content -Encoding UTF8 twms-webpy-entry.py
+
+      - name: Build executables
+        run: |
+          python -m PyInstaller --onefile --name twms twms-stdlib-entry.py
+          python -m PyInstaller --onefile --name twms-webpy twms-webpy-entry.py
+
+      - name: Upload executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: twms-windows-exe-${{ github.sha }}
+          path: dist/*.exe
