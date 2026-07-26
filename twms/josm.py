@@ -17,7 +17,10 @@ def _tag(name):
 
 
 def _layer_extension(layer):
-    return layer.get("ext", "jpg").lower().replace("jpeg", "jpg")
+    return layer.get(
+        "ext",
+        layer.get("mimetype", "image/jpeg").lower().replace("image/", ""),
+    ).lower().replace("jpeg", "jpg")
 
 
 def _layer_url(ref, layer_name, layer):

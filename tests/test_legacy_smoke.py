@@ -21,6 +21,7 @@ from PIL import Image
 
 import twms
 import twms.canvas
+import twms.config_loader
 import twms.daemon
 import twms.fetchers
 import twms.filter
@@ -46,7 +47,7 @@ class LegacySmokeTest(unittest.TestCase):
             "%s" % (x // 1024),
             "x%s" % x,
             "%s" % (y // 1024),
-            "y%s.%s" % (y, layer["ext"]),
+            "y%s.%s" % (y, twms.fetchers._layer_extension(layer)),
         )
 
     def zxy_cache_path(self, cache_root, layer, z, x, y):
@@ -55,12 +56,28 @@ class LegacySmokeTest(unittest.TestCase):
             layer["prefix"],
             "%s" % z,
             "%s" % x,
-            "%s.%s" % (y, layer["ext"]),
+            "%s.%s" % (y, twms.fetchers._layer_extension(layer)),
         )
 
     def test_public_version_keeps_keyboard_suffix(self):
         self.assertEqual(twms.__version__, "0.07z")
         self.assertEqual(importlib.metadata.version("twms"), "0.7+z")
+
+    def test_layer_metadata_normalizes_ext_and_mimetype(self):
+        module = type("Config", (), {})()
+        module.default_format = "image/png"
+        module.layers = {
+            "mimetype-only": {"mimetype": "image/png"},
+            "ext-only": {"ext": "jpg"},
+            "default-format": {},
+        }
+
+        twms.config_loader.normalize_layer_metadata(module)
+
+        self.assertEqual(module.layers["mimetype-only"]["ext"], "png")
+        self.assertEqual(module.layers["ext-only"]["mimetype"], "image/jpeg")
+        self.assertEqual(module.layers["default-format"]["mimetype"], "image/png")
+        self.assertEqual(module.layers["default-format"]["ext"], "png")
 
     def test_legacy_modules_import_as_package_modules(self):
         modules = [
@@ -180,6 +197,31 @@ class LegacySmokeTest(unittest.TestCase):
                 "Bounded</a>",
                 body,
             )
+        finally:
+            twms.twms.config.layers = old_config_layers
+            twms.twms.overview.layers = old_overview_layers
+
+    def test_overview_accepts_mimetype_only_layer(self):
+        old_config_layers = twms.twms.config.layers
+        old_overview_layers = twms.twms.overview.layers
+        layers = {
+            "typed": {
+                "name": "Typed",
+                "prefix": "typed",
+                "mimetype": "image/png",
+                "proj": "EPSG:3857",
+            }
+        }
+        twms.twms.config.layers = layers
+        twms.twms.overview.layers = layers
+        try:
+            status, content_type, body = twms.twms.twms_main(
+                {"ref": "http://example.test/"}
+            )
+
+            self.assertEqual(status, 200)
+            self.assertEqual(content_type, "text/html")
+            self.assertIn("http://example.test/typed/!/!/!.png", body)
         finally:
             twms.twms.config.layers = old_config_layers
             twms.twms.overview.layers = old_overview_layers
@@ -411,6 +453,32 @@ class LegacySmokeTest(unittest.TestCase):
         finally:
             twms.twms.config.layers = old_layers
 
+    def test_tilejson_accepts_mimetype_only_layer(self):
+        old_layers = twms.twms.config.layers
+        twms.twms.config.layers = {
+            "typed": {
+                "name": "Typed",
+                "prefix": "typed",
+                "mimetype": "image/png",
+                "proj": "EPSG:3857",
+            }
+        }
+        try:
+            status, content_type, body = twms.twms.twms_main(
+                {
+                    "request": "GetTileJSON",
+                    "layers": "typed",
+                    "ref": "http://example.test/",
+                }
+            )
+
+            doc = json.loads(body)
+            self.assertEqual(status, 200)
+            self.assertEqual(content_type, "application/json")
+            self.assertEqual(doc["tiles"], ["http://example.test/typed/{z}/{x}/{y}.png"])
+        finally:
+            twms.twms.config.layers = old_layers
+
     def test_josm_imagery_xml_smoke(self):
         status, content_type, body = twms.twms.twms_main(
             {
@@ -440,6 +508,37 @@ class LegacySmokeTest(unittest.TestCase):
         )
         self.assertEqual(osm.find("josm:valid-georeference", namespaces).text, "true")
         self.assertEqual(landsat.find("josm:max-zoom", namespaces).text, "11")
+
+    def test_josm_imagery_xml_accepts_mimetype_only_layer(self):
+        old_layers = twms.twms.config.layers
+        twms.twms.config.layers = {
+            "typed": {
+                "name": "Typed",
+                "prefix": "typed",
+                "mimetype": "image/png",
+                "proj": "EPSG:3857",
+            }
+        }
+        try:
+            status, content_type, body = twms.twms.twms_main(
+                {
+                    "request": "GetJOSMImagery",
+                    "ref": "http://example.test/",
+                }
+            )
+
+            namespaces = {"josm": "http://josm.openstreetmap.de/maps-1.0"}
+            root = ET.fromstring(body)
+            entry = root.find("./josm:entry[josm:id='twms-typed']", namespaces)
+
+            self.assertEqual(status, 200)
+            self.assertEqual(content_type, "text/xml")
+            self.assertEqual(
+                entry.find("josm:url", namespaces).text,
+                "http://example.test/typed/{zoom}/{x}/{y}.png",
+            )
+        finally:
+            twms.twms.config.layers = old_layers
 
     def test_josm_imagery_xml_layer_metadata(self):
         old_layers = twms.twms.config.layers
@@ -573,6 +672,48 @@ class LegacySmokeTest(unittest.TestCase):
             self.assertEqual(content_type, "text/xml")
             self.assertEqual(bounds.find("ows:LowerCorner", namespaces).text, "1.0 2.0")
             self.assertEqual(bounds.find("ows:UpperCorner", namespaces).text, "3.0 4.0")
+        finally:
+            twms.twms.config.layers = old_layers
+
+    def test_wmts_capabilities_accepts_mimetype_only_layer(self):
+        old_layers = twms.twms.config.layers
+        twms.twms.config.layers = {
+            "typed": {
+                "name": "Typed",
+                "prefix": "typed",
+                "mimetype": "image/png",
+                "proj": "EPSG:3857",
+            }
+        }
+        try:
+            status, content_type, body = twms.twms.twms_main(
+                {
+                    "service": "WMTS",
+                    "request": "GetCapabilities",
+                    "ref": "http://example.test/",
+                }
+            )
+
+            root = ET.fromstring(body)
+            namespaces = {
+                "wmts": "http://www.opengis.net/wmts/1.0",
+                "ows": "http://www.opengis.net/ows/1.1",
+            }
+            layer = root.find(
+                "./wmts:Contents/wmts:Layer[ows:Identifier='typed']",
+                namespaces,
+            )
+            resource = layer.find("wmts:ResourceURL", namespaces)
+            format_node = layer.find("wmts:Format", namespaces)
+
+            self.assertEqual(status, 200)
+            self.assertEqual(content_type, "text/xml")
+            self.assertEqual(resource.attrib["format"], "image/png")
+            self.assertEqual(
+                resource.attrib["template"],
+                "http://example.test/wmts/typed/{TileMatrix}/{TileCol}/{TileRow}.png",
+            )
+            self.assertEqual(format_node.text, "image/png")
         finally:
             twms.twms.config.layers = old_layers
 
@@ -1129,6 +1270,30 @@ class LegacySmokeTest(unittest.TestCase):
                     image = twms.fetchers.Tile(2, 3, 4, layer)
 
                 self.assertEqual(image.format, "JPEG")
+                with Image.open(path) as cached_image:
+                    self.assertEqual(cached_image.format, "PNG")
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_tile_cache_accepts_mimetype_only_layer(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "mimetype",
+                "mimetype": "image/png",
+                "remote_url": "http://example.test/%s/%s/%s.jpg",
+            }
+            try:
+                path = self.cache_path(cache_root, layer, 2, 3, 4)
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = self.image_bytes(
+                        (20, 30, 40), image_format="JPEG"
+                    )
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                self.assertEqual(image.format, "JPEG")
+                self.assertTrue(path.endswith(".png"))
                 with Image.open(path) as cached_image:
                     self.assertEqual(cached_image.format, "PNG")
             finally:

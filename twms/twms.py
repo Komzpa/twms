@@ -102,6 +102,13 @@ def _layer_bounds(layer):
     )
 
 
+def _layer_extension(layer):
+    return layer.get(
+        "ext",
+        layer.get("mimetype", "image/jpeg").lower().replace("image/", ""),
+    ).lower().replace("jpeg", "jpg")
+
+
 def twms_main(data):
     """
     Do main TWMS work. 
@@ -273,7 +280,7 @@ def twms_main(data):
                         + config.layers[layer[0]]["prefix"]
                         + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
                     )
-                    ext = config.layers[layer[0]]["ext"]
+                    ext = _layer_extension(config.layers[layer[0]])
                     adds = ["", "ups."]
                     for add in adds:
                         if os.path.exists(local + add + ext):
@@ -469,7 +476,7 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
             + layer["prefix"]
             + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
         )
-        ext = layer["ext"]
+        ext = _layer_extension(layer)
         if "cache_ttl" in layer:
             for ex in [ext, "dsc." + ext, "ups." + ext, "tne"]:
                 f = local + ex

@@ -21,10 +21,15 @@ def _tag(namespace, name):
 
 
 def _extension(layer):
-    return layer.get("ext", "jpg").lower().replace("jpeg", "jpg")
+    return layer.get(
+        "ext",
+        layer.get("mimetype", "image/jpeg").lower().replace("image/", ""),
+    ).lower().replace("jpeg", "jpg")
 
 
 def _mime_type(layer):
+    if "mimetype" in layer:
+        return layer["mimetype"]
     ext = _extension(layer)
     if ext == "jpg":
         return "image/jpeg"

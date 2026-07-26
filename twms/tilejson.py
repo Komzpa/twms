@@ -33,7 +33,14 @@ def _tile_extension(config, layer_names, format_name):
     if format_name:
         return format_name.lower().replace("image/", "").replace("jpeg", "jpg")
     if len(layer_names) == 1:
-        return config.layers[layer_names[0]].get("ext", "jpg")
+        layer = config.layers[layer_names[0]]
+        return layer.get(
+            "ext",
+            layer.get("mimetype", "image/jpeg")
+            .lower()
+            .replace("image/", "")
+            .replace("jpeg", "jpg"),
+        )
     return config.default_format.lower().replace("image/", "").replace("jpeg", "jpg")
 
 

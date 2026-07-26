@@ -16,6 +16,13 @@ def _layer_bounds(layer):
     )
 
 
+def _layer_extension(layer):
+    return layer.get(
+        "ext",
+        layer.get("mimetype", "image/jpeg").lower().replace("image/", ""),
+    ).lower().replace("jpeg", "jpg")
+
+
 def html(ref):
     """
     Gives overall information about twms server and its layers in HTML format.
@@ -59,7 +66,7 @@ def html(ref):
             + ""
             + i
             + "/!/!/!."
-            + layers[i].get("ext", "jpg")
+            + _layer_extension(layers[i])
             + "<br />"
         )
         resp += "</td></tr>"

@@ -36,6 +36,13 @@ _EXTENSION_FORMATS = {
 }
 
 
+def _layer_extension(this_layer):
+    if "ext" in this_layer:
+        return this_layer["ext"].lower().strip(".").replace("jpeg", "jpg")
+    mimetype = this_layer.get("mimetype", "image/jpeg")
+    return mimetype.lower().replace("image/", "").replace("jpeg", "jpg")
+
+
 def _cache_stem(z, x, y, this_layer):
     cache_prefix = config.tiles_cache + this_layer["prefix"]
     if this_layer.get("cache_layout") in ("zxy", "slippy", "mobac", "tms"):
@@ -137,7 +144,7 @@ class TileCache:
         self.cached = this_layer.get("cached", True)
         if self.cached:
             self.stem = _cache_stem(z, x, y, this_layer)
-            self.path = self.stem + this_layer["ext"]
+            self.path = self.stem + _layer_extension(this_layer)
             self.tne_path = self.stem + "tne"
             self.lock_path = self.stem + "lock"
         else:
@@ -209,7 +216,7 @@ class TileCache:
         if not self.cached:
             return
         tmp_path = self.path + ".tmp.%s" % os.getpid()
-        image.save(tmp_path, _EXTENSION_FORMATS.get(self.layer["ext"].lower()))
+        image.save(tmp_path, _EXTENSION_FORMATS.get(_layer_extension(self.layer)))
         os.replace(tmp_path, self.path)
         if os.path.exists(self.tne_path):
             os.remove(self.tne_path)
@@ -353,7 +360,7 @@ def Tile(z, x, y, this_layer):
             cache.mark_tne()
             return False
         if this_layer.get("cached", True):
-            cache.write_bytes(_cache_image_bytes(contents, im, this_layer["ext"]))
+            cache.write_bytes(_cache_image_bytes(contents, im, _layer_extension(this_layer)))
         return im
     finally:
         if locked:
