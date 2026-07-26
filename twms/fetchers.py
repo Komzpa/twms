@@ -242,7 +242,7 @@ def Tile(z, x, y, this_layer):
     if "transform_tile_number" in this_layer:
         d_tuple = this_layer["transform_tile_number"](z, x, y)
 
-    remote = this_layer["remote_url"] % d_tuple
+    remote = _format_tile_url(this_layer["remote_url"], d_tuple)
     cache = TileCache(z, x, y, this_layer)
     if this_layer.get("cached", True) and not cache.needs_fetch():
         return cache.open_image()
@@ -313,6 +313,38 @@ def _cache_image_bytes(contents, image, extension):
     else:
         image.save(image_content, target_format)
     return image_content.getvalue()
+
+
+def _format_tile_url(template, tile):
+    if "{" not in template:
+        return template % tile
+
+    z, x, y = tile
+    return (
+        template.replace("{z}", str(z))
+        .replace("{x}", str(x))
+        .replace("{y}", str(y))
+        .replace("{-y}", str(tile_slippy_to_tms(z, x, y)[2]))
+        .replace("{q}", tile_to_quadkey(z, x, y))
+    )
+
+
+def tile_to_quadkey(z, x, y):
+    quadkey = []
+    for offset in range(z):
+        bit = z - offset
+        digit = ord("0")
+        mask = 1 << (bit - 1)
+        if x & mask:
+            digit += 1
+        if y & mask:
+            digit += 2
+        quadkey.append(chr(digit))
+    return "".join(quadkey)
+
+
+def tile_slippy_to_tms(z, x, y):
+    return z, x, (1 << z) - y - 1
 
 
 def _is_tne_http_error(error, this_layer):

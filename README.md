@@ -69,7 +69,9 @@ Layer dictionaries usually define:
 - `prefix`: cache subdirectory
 - `ext`: tile extension such as `jpg` or `png`
 - `proj`: tile pyramid projection, commonly `EPSG:3857` or `EPSG:3395`
-- `remote_url`: upstream tile URL template
+- `remote_url`: upstream tile URL template; legacy `%s/%s/%s` templates still
+  work, and named placeholders `{z}`, `{x}`, `{y}`, `{-y}`, and `{q}` are also
+  accepted for readable Slippy/TMS/Bing URLs
 - `fetch`: fetcher function, normally `fetchers.Tile`
 - `min_zoom` / `max_zoom`: optional zoom limits
 - `cache_ttl`: optional fresh-cache lifetime in seconds

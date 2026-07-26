@@ -553,6 +553,70 @@ class LegacySmokeTest(unittest.TestCase):
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 
+    def test_legacy_percent_tile_template_still_uses_transform_tuple(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "url",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+                "transform_tile_number": lambda z, x, y: (x, y, z - 1),
+            }
+            try:
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = self.image_bytes(
+                        (1, 2, 3, 255)
+                    )
+                    twms.fetchers.Tile(2, 3, 4, layer)
+
+                urlopen.assert_called_once_with("http://example.test/3/4/1.png")
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_named_tile_template_placeholders(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "url",
+                "ext": "png",
+                "remote_url": "http://example.test/{z}/{x}/{y}/{-y}/{q}.png",
+            }
+            try:
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = self.image_bytes(
+                        (1, 2, 3, 255)
+                    )
+                    twms.fetchers.Tile(4, 9, 5, layer)
+
+                urlopen.assert_called_once_with(
+                    "http://example.test/4/9/5/10/1203.png"
+                )
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_named_tile_template_uses_transform_tuple(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "url",
+                "ext": "png",
+                "remote_url": "http://example.test/z{z}/x{x}/y{y}.png",
+                "transform_tile_number": lambda z, x, y: (z - 1, x + 1, y + 2),
+            }
+            try:
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = self.image_bytes(
+                        (1, 2, 3, 255)
+                    )
+                    twms.fetchers.Tile(4, 5, 6, layer)
+
+                urlopen.assert_called_once_with("http://example.test/z3/x6/y8.png")
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
     def test_wsgi_application_imports(self):
         self.assertTrue(callable(twms.daemon.application))
 
