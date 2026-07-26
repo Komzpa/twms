@@ -39,6 +39,20 @@ class LegacySmokeTest(unittest.TestCase):
         image.save(buffer, image_format)
         return buffer.getvalue()
 
+    def rendered_point_centroid(self, body):
+        image = Image.open(BytesIO(body)).convert("RGBA")
+        pixels = []
+        for y in range(image.height):
+            for x in range(image.width):
+                red, green, blue, alpha = image.getpixel((x, y))
+                if alpha and green > red and green > blue:
+                    pixels.append((x, y))
+        self.assertTrue(pixels, "expected a visible WKT point")
+        return (
+            sum(x for x, _ in pixels) / len(pixels),
+            sum(y for _, y in pixels) / len(pixels),
+        )
+
     def cache_path(self, cache_root, layer, z, x, y):
         return os.path.join(
             cache_root,
@@ -381,6 +395,47 @@ class LegacySmokeTest(unittest.TestCase):
                 any(image.getchannel("A").tobytes()),
                 "WKT overlay should draw visible pixels",
             )
+
+    def test_wkt_point_position_follows_request_bbox(self):
+        examples = [
+            ("-83,-41.8,67,68.8", (396, 140)),
+            ("-83,11.8,67,68.8", (396, 272)),
+        ]
+        for bbox, expected in examples:
+            with self.subTest(bbox=bbox):
+                status, content_type, body = twms.twms.twms_main(
+                    {
+                        "request": "GetMap",
+                        "layers": "transparent",
+                        "format": "image/png",
+                        "width": "800",
+                        "height": "600",
+                        "bbox": bbox,
+                        "wkt": "POINT(-8.55 42.85)",
+                    }
+                )
+
+                self.assertEqual(status, 200)
+                self.assertEqual(content_type, "image/png")
+                centroid = self.rendered_point_centroid(body)
+                self.assertAlmostEqual(centroid[0], expected[0], delta=1)
+                self.assertAlmostEqual(centroid[1], expected[1], delta=1)
+
+    def test_noresize_without_width_or_height_uses_tile_size(self):
+        status, content_type, body = twms.twms.twms_main(
+            {
+                "request": "GetMap",
+                "layers": "transparent",
+                "format": "image/png",
+                "bbox": "-1,-1,1,1",
+                "force": "noresize",
+            }
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "image/png")
+        with Image.open(BytesIO(body)) as image:
+            self.assertEqual(image.size, (256, 256))
 
     def test_legacy_canvas_blank_tile_smoke(self):
         canvas = twms.canvas.WmsCanvas(tile_size=(32, 32))
@@ -1090,6 +1145,83 @@ class LegacySmokeTest(unittest.TestCase):
                 else:
                     del twms.twms.config.cache_tile_responses
 
+    def test_empty_filter_and_force_match_response_cache_keys(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = getattr(twms.twms.config, "cache_tile_responses", None)
+            had_cache = hasattr(twms.twms.config, "cache_tile_responses")
+            twms.twms.config.cache_tile_responses = {
+                ("EPSG:3857", ("transparent",), (), 256, 256, (), "PNG"): (
+                    cache_root,
+                    "png",
+                ),
+            }
+            try:
+                path = os.path.join(cache_root, "2", "3", "4.png")
+                os.makedirs(os.path.dirname(path))
+                expected = self.image_bytes((80, 90, 100, 255))
+                with open(path, "wb") as cached_tile:
+                    cached_tile.write(expected)
+
+                status, content_type, body = twms.twms.twms_main(
+                    {
+                        "request": "GetTile",
+                        "layers": "transparent",
+                        "format": "image/png",
+                        "z": "2",
+                        "x": "3",
+                        "y": "4",
+                        "filter": "",
+                        "force": "",
+                    }
+                )
+
+                self.assertEqual(status, 200)
+                self.assertEqual(content_type, "image/png")
+                self.assertEqual(body, expected)
+            finally:
+                if had_cache:
+                    twms.twms.config.cache_tile_responses = old_cache
+                else:
+                    del twms.twms.config.cache_tile_responses
+
+    def test_filter_alias_matches_response_cache_keys(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = getattr(twms.twms.config, "cache_tile_responses", None)
+            had_cache = hasattr(twms.twms.config, "cache_tile_responses")
+            twms.twms.config.cache_tile_responses = {
+                ("EPSG:3857", ("transparent",), ("bw",), 256, 256, (), "PNG"): (
+                    cache_root,
+                    "png",
+                ),
+            }
+            try:
+                path = os.path.join(cache_root, "2", "3", "4.png")
+                os.makedirs(os.path.dirname(path))
+                expected = self.image_bytes((82, 92, 102, 255))
+                with open(path, "wb") as cached_tile:
+                    cached_tile.write(expected)
+
+                status, content_type, body = twms.twms.twms_main(
+                    {
+                        "request": "GetTile",
+                        "layers": "transparent",
+                        "format": "image/png",
+                        "z": "2",
+                        "x": "3",
+                        "y": "4",
+                        "filter": "bw",
+                    }
+                )
+
+                self.assertEqual(status, 200)
+                self.assertEqual(content_type, "image/png")
+                self.assertEqual(body, expected)
+            finally:
+                if had_cache:
+                    twms.twms.config.cache_tile_responses = old_cache
+                else:
+                    del twms.twms.config.cache_tile_responses
+
     def test_legacy_response_cache_writes_binary_tile(self):
         with tempfile.TemporaryDirectory() as cache_root:
             old_cache = getattr(twms.twms.config, "cache_tile_responses", None)
@@ -1395,6 +1527,49 @@ class LegacySmokeTest(unittest.TestCase):
                     self.assertEqual(cached_image.format, "PNG")
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
+
+    def test_direct_gettile_first_fetch_returns_cached_upstream_bytes(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_twms_cache = twms.twms.config.tiles_cache
+            old_fetchers_cache = twms.fetchers.config.tiles_cache
+            old_layers = twms.twms.config.layers
+            twms.twms.config.tiles_cache = cache_root + os.sep
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "raw-first-fetch",
+                "proj": "EPSG:3857",
+                "ext": "png",
+                "scalable": False,
+                "fetch": twms.fetchers.Tile,
+                "remote_url": "http://example.test/%s/%s/%s.png",
+                "transform_tile_number": lambda z, x, y: (z - 1, x, y),
+            }
+            twms.twms.config.layers = {"raw-first-fetch": layer}
+            upstream_bytes = self.image_bytes((10, 20, 30, 255)) + b"raw-marker"
+            try:
+                path = self.cache_path(cache_root, layer, 3, 3, 3)
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = upstream_bytes
+                    status, content_type, body = twms.twms.twms_main(
+                        {
+                            "request": "GetTile",
+                            "layers": "raw-first-fetch",
+                            "format": "image/png",
+                            "z": "2",
+                            "x": "3",
+                            "y": "3",
+                        }
+                    )
+
+                self.assertEqual(status, 200)
+                self.assertEqual(content_type, "image/png")
+                self.assertEqual(body, upstream_bytes)
+                with open(path, "rb") as cached_tile:
+                    self.assertEqual(cached_tile.read(), upstream_bytes)
+            finally:
+                twms.twms.config.tiles_cache = old_twms_cache
+                twms.fetchers.config.tiles_cache = old_fetchers_cache
+                twms.twms.config.layers = old_layers
 
     def test_tile_cache_accepts_mimetype_only_layer(self):
         with tempfile.TemporaryDirectory() as cache_root:

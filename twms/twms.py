@@ -110,6 +110,26 @@ def _layer_extension(layer):
     ).lower().replace("jpeg", "jpg")
 
 
+def _tile_cache_stem(layer, z, x, y):
+    cache_prefix = config.tiles_cache + layer["prefix"]
+    if layer.get("cache_layout") in ("zxy", "slippy", "mobac", "tms"):
+        return cache_prefix + "/%s/%s/%s." % (z, x, y)
+    return (
+        cache_prefix + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
+    )
+
+
+def _cached_tile_bytes(layer, z, x, y):
+    stem = _tile_cache_stem(layer, z, x, y)
+    ext = _layer_extension(layer)
+    for add in ("", "ups."):
+        path = stem + add + ext
+        if os.path.exists(path):
+            with open(path, "rb") as tile_file:
+                return tile_file.read()
+    return None
+
+
 def twms_main(data):
     """
     Do main TWMS work. 
@@ -215,7 +235,7 @@ def twms_main(data):
         force = force.split(",")
     force = tuple(force)
 
-    filt = data.get("filt", "")
+    filt = data.get("filt", data.get("filter", ""))
     if filt != "":
         filt = filt.split(",")
     filt = tuple(filt)
@@ -268,26 +288,23 @@ def twms_main(data):
                         return (OK, content_type, cached_response.read())
         if len(layer) == 1:
             if layer[0] in config.layers:
+                direct_layer = config.layers[layer[0]]
                 if (
-                    config.layers[layer[0]]["proj"] == srs
+                    direct_layer["proj"] == srs
                     and width == 256
                     and height == 256
                     and not filt
                     and not force
-                    and not correctify.has_corrections(config.layers[layer[0]])
+                    and direct_layer.get("cached", True)
+                    and not correctify.has_corrections(direct_layer)
                 ):
-                    local = (
-                        config.tiles_cache
-                        + config.layers[layer[0]]["prefix"]
-                        + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
-                    )
-                    ext = _layer_extension(config.layers[layer[0]])
-                    adds = ["", "ups."]
-                    for add in adds:
-                        if os.path.exists(local + add + ext):
-                            with open(local + add + ext, "rb") as tile_file:
-                                resp = tile_file.read()
-                            return (OK, content_type, resp)
+                    cached_tile = _cached_tile_bytes(direct_layer, z, x, y)
+                    if cached_tile is not None:
+                        return (OK, content_type, cached_tile)
+                    tile_image(direct_layer, z, x, y, start_time, real=False)
+                    cached_tile = _cached_tile_bytes(direct_layer, z, x, y)
+                    if cached_tile is not None:
+                        return (OK, content_type, cached_tile)
         req_bbox = projections.from4326(projections.bbox_by_tile(z, x, y, srs), srs)
 
     if data.get("bbox", None):
@@ -305,7 +322,11 @@ def twms_main(data):
     width = min(width, config.max_width)
     height = min(height, config.max_height)
     if (width == 0) and (height == 0):
-        width = 350
+        if "noresize" in force:
+            width = 256
+            height = 256
+        else:
+            width = 350
 
     # layer = layer.split(",")
 
@@ -666,7 +687,9 @@ def getimg(bbox, request_proj, size, layer, start_time, force):
 
     # TODO: Here's a room for improvement. we could drop this crop in case user doesn't need it.
     out = out.crop(bbox_im)
-    if "noresize" not in force:
+    if "noresize" in force and (H == 0 or W == 0):
+        W, H = out.size
+    elif "noresize" not in force:
         if (H == W) and (H == 0):
             W, H = out.size
         if H == 0:
