@@ -218,7 +218,8 @@ def twms_main(data):
                     resp_ext,
                 )
                 if os.path.exists(resp_cache_path):
-                    return (OK, content_type, open(resp_cache_path, "r").read())
+                    with open(resp_cache_path, "rb") as cached_response:
+                        return (OK, content_type, cached_response.read())
         if len(layer) == 1:
             if layer[0] in config.layers:
                 if (
@@ -391,9 +392,8 @@ def twms_main(data):
         except OSError:
             pass
         try:
-            a = open(resp_cache_path, "w")
-            a.write(resp)
-            a.close()
+            with open(resp_cache_path, "wb") as cached_response:
+                cached_response.write(resp)
         except (OSError, IOError):
             print(
                 "error saving response answer to file %s." % (resp_cache_path),
