@@ -48,6 +48,15 @@ class LegacySmokeTest(unittest.TestCase):
             "y%s.%s" % (y, layer["ext"]),
         )
 
+    def zxy_cache_path(self, cache_root, layer, z, x, y):
+        return os.path.join(
+            cache_root,
+            layer["prefix"],
+            "%s" % z,
+            "%s" % x,
+            "%s.%s" % (y, layer["ext"]),
+        )
+
     def test_public_version_keeps_keyboard_suffix(self):
         self.assertEqual(twms.__version__, "0.07z")
         self.assertEqual(importlib.metadata.version("twms"), "0.7+z")
@@ -389,6 +398,56 @@ class LegacySmokeTest(unittest.TestCase):
 
                 urlopen.assert_not_called()
                 self.assertEqual(image.getpixel((0, 0)), (10, 20, 30, 255))
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_tile_cache_can_use_zxy_layout(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "zxy",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+                "cache_layout": "zxy",
+            }
+            try:
+                path = self.zxy_cache_path(cache_root, layer, 2, 3, 4)
+                legacy_path = self.cache_path(cache_root, layer, 2, 3, 4)
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = self.image_bytes(
+                        (10, 20, 30, 255)
+                    )
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                self.assertEqual(image.getpixel((0, 0)), (10, 20, 30, 255))
+                self.assertTrue(os.path.exists(path))
+                self.assertFalse(os.path.exists(legacy_path))
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_tile_cache_can_reuse_fresh_zxy_file_without_network(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "zxy-hit",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+                "cache_layout": "zxy",
+                "cache_ttl": 3600,
+            }
+            try:
+                path = self.zxy_cache_path(cache_root, layer, 2, 3, 4)
+                os.makedirs(os.path.dirname(path))
+                with open(path, "wb") as tile_file:
+                    tile_file.write(self.image_bytes((70, 80, 90, 255)))
+
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                self.assertEqual(image.getpixel((0, 0)), (70, 80, 90, 255))
+                urlopen.assert_not_called()
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 

@@ -77,6 +77,9 @@ Layer dictionaries usually define:
 - `fetch`: fetcher function, normally `fetchers.Tile`
 - `min_zoom` / `max_zoom`: optional zoom limits
 - `cache_ttl`: optional fresh-cache lifetime in seconds
+- `cache_layout`: optional cache path layout; the default is TWMS'
+  historical grouped layout, while `zxy` stores slippy/MOBAC-style
+  `<tiles_cache>/<prefix>/<z>/<x>/<y>.<ext>` tiles
 - `dead_tile`: optional dead-tile marker, either a legacy file path or a
   `{ "size": ..., "md5": {...} }` dictionary; dictionaries may also set
   `http_status` for an upstream status code that should be cached as `.tne`
@@ -149,7 +152,8 @@ tms:http://127.0.0.1:8080/?request=GetTile&layers=osm&z={zoom}&x={x}&y={y}&forma
 ```
 
 JOSM can also point directly at a compatible local slippy-map cache with
-`file://` if no proxy or reprojection is needed:
+`file://` if no proxy or reprojection is needed. Configure that layer with
+`cache_layout: "zxy"` so TWMS uses the same `<z>/<x>/<y>` path:
 
 ```text
 tms:file:///home/user/SAS.Planet/cache_ma/osm/{zoom}/{x}/{y}.png
@@ -163,7 +167,8 @@ tms:file:///C:/SAS.Planet/cache_ma/osm/{zoom}/{x}/{y}.png
 
 ## Shared tile caches
 
-twms keeps the historical filesystem cache layout under `tiles_cache`:
+By default, twms keeps the historical filesystem cache layout under
+`tiles_cache`:
 
 ```text
 <tiles_cache>/<prefix>/z<z>/<x // 1024>/x<x>/<y // 1024>/y<y>.<ext>
@@ -174,8 +179,13 @@ expires, twms tries to refresh the tile; if the remote fetch fails, the
 stale cached tile can still be used. Missing/dead tiles can be recorded
 as `.tne` files so repeated requests do not hammer upstream services.
 
-This makes twms useful with tools that share a slippy-map/MOBAC-style
-cache, including SAS.Planet and similar offline tile workflows.
+Layers that need to share a slippy-map/MOBAC-style cache, including
+SAS.Planet and similar offline tile workflows, can opt in with
+`cache_layout: "zxy"`:
+
+```text
+<tiles_cache>/<prefix>/<z>/<x>/<y>.<ext>
+```
 
 ## Optional dependencies
 

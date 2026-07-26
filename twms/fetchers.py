@@ -36,10 +36,11 @@ _EXTENSION_FORMATS = {
 
 
 def _cache_stem(z, x, y, this_layer):
+    cache_prefix = config.tiles_cache + this_layer["prefix"]
+    if this_layer.get("cache_layout") in ("zxy", "slippy", "mobac", "tms"):
+        return cache_prefix + "/%s/%s/%s." % (z, x, y)
     return (
-        config.tiles_cache
-        + this_layer["prefix"]
-        + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
+        cache_prefix + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
     )
 
 
