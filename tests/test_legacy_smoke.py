@@ -104,6 +104,36 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(override.get("mimetype"), "image/jpeg")
         self.assertEqual(override.get("ext"), "jpg")
 
+    def test_layer_metadata_accepts_string_fetch_aliases(self):
+        module = type("Config", (), {})()
+        module.layers = {
+            "tiles": {"fetch": "tms"},
+            "wms": {"fetch": "wms"},
+        }
+
+        twms.config_loader.normalize_layer_metadata(module)
+
+        self.assertIs(module.layers["tiles"]["fetch"], twms.fetchers.Tile)
+        self.assertIs(module.layers["wms"]["fetch"], twms.fetchers.WMS)
+
+    def test_layer_metadata_accepts_default_string_fetch_alias(self):
+        module = type("Config", (), {})()
+        module.layer_defaults = {"fetch": "wms"}
+        module.layers = {
+            "defaulted": {"name": "Defaulted", "prefix": "defaulted"},
+        }
+
+        twms.config_loader.normalize_layer_metadata(module)
+
+        self.assertIs(module.layers["defaulted"]["fetch"], twms.fetchers.WMS)
+
+    def test_layer_metadata_rejects_unknown_string_fetch_alias(self):
+        module = type("Config", (), {})()
+        module.layers = {"bad": {"fetch": "factory-factory"}}
+
+        with self.assertRaisesRegex(ValueError, "factory-factory"):
+            twms.config_loader.normalize_layer_metadata(module)
+
     def test_legacy_modules_import_as_package_modules(self):
         modules = [
             "twms.bbox",

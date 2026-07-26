@@ -55,13 +55,33 @@ def _normalize_format_metadata(layer, default_mimetype=None):
             layer["ext"] = extension
 
 
+def _normalize_fetch_metadata(layer):
+    fetch = layer.get("fetch")
+    if not isinstance(fetch, str):
+        return
+
+    from twms import fetchers
+
+    fetchers_by_name = {
+        "tile": fetchers.Tile,
+        "tms": fetchers.Tile,
+        "wms": fetchers.WMS,
+    }
+    try:
+        layer["fetch"] = fetchers_by_name[fetch.lower()]
+    except KeyError:
+        raise ValueError("Unknown fetcher alias: %s" % fetch)
+
+
 def normalize_layer_metadata(module):
     default_mimetype = getattr(module, "default_format", None)
     layer_defaults = getattr(module, "layer_defaults", None)
     if isinstance(layer_defaults, dict):
         _normalize_format_metadata(layer_defaults, default_mimetype)
+        _normalize_fetch_metadata(layer_defaults)
     for name, layer in list(getattr(module, "layers", {}).items()):
         _normalize_format_metadata(layer, default_mimetype)
+        _normalize_fetch_metadata(layer)
         if isinstance(layer_defaults, dict):
             module.layers[name] = LayerConfig(layer_defaults, layer)
 

@@ -88,7 +88,8 @@ Layer dictionaries usually define:
   templates may use `{bbox}`, `{width}`, `{height}`, and `{proj}`
 - `headers`: optional upstream HTTP request headers, such as `Referer`,
   `User-Agent`, or authentication cookies required by a particular source
-- `fetch`: fetcher function, normally `fetchers.Tile`
+- `fetch`: fetcher function, normally `fetchers.Tile`; readable aliases
+  `"tms"` / `"tile"` and `"wms"` are also accepted
 - `timeout`: optional per-layer upstream HTTP timeout in seconds; set to
   `None` only if an old deployment deliberately wants the historical unbounded
   wait
