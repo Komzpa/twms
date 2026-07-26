@@ -48,16 +48,7 @@ jobs:
         run: python -m compileall -q setup.py index.py tools twms
 
       - name: Import WSGI application
-        run: |
-          python - <<'PY'
-          import importlib.metadata
-          import twms
-          import twms.daemon
-
-          assert twms.__version__ == "0.07z"
-          assert importlib.metadata.version("twms") == "0.7+z"
-          print(type(twms.daemon.application).__name__)
-          PY
+        run: python -c "import importlib.metadata; import twms; import twms.daemon; assert twms.__version__ == '0.07z'; assert importlib.metadata.version('twms') == '0.7+z'; print(type(twms.daemon.application).__name__)"
 
       - name: Run legacy smoke tests
         run: python -m unittest discover -s tests
