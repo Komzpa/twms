@@ -5,11 +5,8 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
-import filecmp
 import hashlib
-import math
 import os
-import sys
 import threading
 import time
 from io import BytesIO
@@ -320,7 +317,6 @@ def WMS(z, x, y, this_layer):
 
 
 def Tile(z, x, y, this_layer):
-    global OSError, IOError
     d_tuple = z, x, y
     if _outside_zoom_limits(z, this_layer):
         return None

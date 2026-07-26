@@ -4,7 +4,7 @@ import os
 import platform
 from glob import glob as abs_glob
 
-from setuptools import find_packages, setup
+from setuptools import setup
 
 
 __platform__ = platform.system()

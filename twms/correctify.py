@@ -22,12 +22,12 @@ def has_corrections(layer):
 
 def corr_wkt(layer):
     corrfile = config.tiles_cache + layer.get("prefix", "") + "/rectify.txt"
-    corr = open(corrfile, "r")
     wkt = ""
-    for line in corr:
-        d, c, b, a, user, ts = line.split()
-        d, c, b, a = (float(d), float(c), float(b), float(a))
-        wkt += "POINT(%s %s),LINESTRING(%s %s,%s %s)," % (d, c, d, c, b, a)
+    with open(corrfile, "r") as corr:
+        for line in corr:
+            d, c, b, a, user, ts = line.split()
+            d, c, b, a = (float(d), float(c), float(b), float(a))
+            wkt += "POINT(%s %s),LINESTRING(%s %s,%s %s)," % (d, c, d, c, b, a)
     return wkt[:-1]
 
 
@@ -36,39 +36,39 @@ def rectify(layer, point):
     srs = layer["proj"]
     if not os.path.exists(corrfile):
         return point
-    corr = open(corrfile, "r")
     lons, lats = point
     loni, lati, lona, lata = projections.projs[projections.proj_alias.get(srs, srs)][
         "bounds"
     ]
-    if (lons is loni and lats is lati) or (lons is lona and lats is lata):
+    if (lons == loni and lats == lati) or (lons == lona and lats == lata):
         return point
     # print(pickle.dumps(coefs[layer]), file=sys.stderr)
     #    sys.stderr.flush()
     lonaz, loniz, lataz, latiz = lona, loni, lata, lati
     maxdist = 1.80
-    for line in corr:
-        d, c, b, a, user, ts = line.split()
-        d, c, b, a = (float(d), float(c), float(b), float(a))
-        # for d,c,b,a in coefs[layer]:
-        # print(a,b, distance(lons, lats, b, a), file=sys.stderr)
-        if distance(b, a, lons, lats) < maxdist:
-            if a > lats:
-                if distance(a, b, lats, lons) <= distance(lata, lona, lats, lons):
-                    lata = a
-                    lataz = c
-            if a < lats:
-                if distance(a, b, lats, lons) <= distance(lati, loni, lats, lons):
-                    lati = a
-                    latiz = c
-            if b > lons:
-                if distance(a, b, lats, lons) <= distance(lata, lona, lats, lons):
-                    lona = b
-                    lonaz = d
-            if b < lons:
-                if distance(a, b, lats, lons) <= distance(lati, loni, lats, lons):
-                    loni = b
-                    loniz = d
+    with open(corrfile, "r") as corr:
+        for line in corr:
+            d, c, b, a, user, ts = line.split()
+            d, c, b, a = (float(d), float(c), float(b), float(a))
+            # for d,c,b,a in coefs[layer]:
+            # print(a,b, distance(lons, lats, b, a), file=sys.stderr)
+            if distance(b, a, lons, lats) < maxdist:
+                if a > lats:
+                    if distance(a, b, lats, lons) <= distance(lata, lona, lats, lons):
+                        lata = a
+                        lataz = c
+                if a < lats:
+                    if distance(a, b, lats, lons) <= distance(lati, loni, lats, lons):
+                        lati = a
+                        latiz = c
+                if b > lons:
+                    if distance(a, b, lats, lons) <= distance(lata, lona, lats, lons):
+                        lona = b
+                        lonaz = d
+                if b < lons:
+                    if distance(a, b, lats, lons) <= distance(lati, loni, lats, lons):
+                        loni = b
+                        loniz = d
     #    print(loni, lati, lona, lata, distance(loni, lati, lona, lata), file=sys.stderr)
     #    print("clat:", (lata-lati)/(lataz-latiz), (lona-loni)/(lonaz-loniz), file=sys.stderr)
     #    sys.stderr.flush()

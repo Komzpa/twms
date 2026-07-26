@@ -1,12 +1,13 @@
 import datetime
 import importlib
 import importlib.metadata
+import contextlib
 import hashlib
 import json
 import math
 import os
 from collections import OrderedDict
-from io import BytesIO
+from io import BytesIO, StringIO
 import tempfile
 import threading
 import unittest
@@ -22,9 +23,11 @@ from PIL import Image
 import twms
 import twms.canvas
 import twms.config_loader
+import twms.correctify
 import twms.daemon
 import twms.fetchers
 import twms.filter
+import twms.gpxparse
 import twms.projections
 import twms.server
 import twms.twms
@@ -367,12 +370,108 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(content_type, "text/plain")
         self.assertEqual(body, "27.6,53.2;\n")
 
+    def test_legacy_gpx_track_points_keep_parse_order_on_python3(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".gpx", delete=False) as gpx_file:
+            gpx_path = gpx_file.name
+            gpx_file.write(
+                """<?xml version="1.0"?>
+                <gpx version="1.1" creator="twms-test">
+                  <trk><trkseg>
+                    <trkpt lat="53.1" lon="27.1"><time>2026-01-01T00:00:00Z</time></trkpt>
+                    <trkpt lat="53.2" lon="27.2"><time>2026-01-01T00:01:00Z</time></trkpt>
+                  </trkseg></trk>
+                </gpx>
+                """
+            )
+        try:
+            track = twms.gpxparse.GPXParser(gpx_path)
+        finally:
+            os.unlink(gpx_path)
+
+        self.assertEqual(track.bbox, (27.1, 53.1, 27.2, 53.2))
+        self.assertEqual(track.getTrack(0), [(27.1, 53.1), (27.2, 53.2)])
+
+    def test_legacy_gpx_trace_download_uses_python3_urlretrieve(self):
+        gpx_body = b"""<?xml version="1.0"?>
+        <gpx version="1.1" creator="twms-test">
+          <trk><trkseg>
+            <trkpt lat="53.1" lon="27.1"><time>2026-01-01T00:00:00Z</time></trkpt>
+            <trkpt lat="53.2" lon="27.2"><time>2026-01-01T00:01:00Z</time></trkpt>
+          </trkseg></trk>
+        </gpx>
+        """
+
+        def write_gpx(url, filename):
+            self.assertEqual(url, "http://www.openstreetmap.org/trace/123/data")
+            with open(filename, "wb") as trace_file:
+                trace_file.write(gpx_body)
+
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.twms.config.gpx_cache
+            twms.twms.config.gpx_cache = cache_root + os.sep
+            try:
+                with mock.patch("twms.twms.urlretrieve", side_effect=write_gpx):
+                    status, content_type, body = twms.twms.twms_main(
+                        {
+                            "request": "GetMap",
+                            "layers": "transparent",
+                            "format": "image/png",
+                            "width": "16",
+                            "height": "16",
+                            "gpx": "123",
+                        }
+                    )
+
+                self.assertEqual(status, 200)
+                self.assertEqual(content_type, "image/png")
+                self.assertIsInstance(body, bytes)
+                self.assertTrue(os.path.exists(os.path.join(cache_root, "123.gpx")))
+            finally:
+                twms.twms.config.gpx_cache = old_cache
+
     def test_legacy_filter_smoke(self):
         image = Image.new("RGBA", (2, 1), (10, 20, 30, 255))
 
         filtered = twms.filter.raster(image, ("swaprb", "brightness:2"))
 
         self.assertEqual(filtered.getpixel((0, 0)), (60, 40, 20, 255))
+
+    @unittest.skipUnless(twms.filter.NUMPY_AVAILABLE, "numpy not installed")
+    def test_legacy_fusion_filter_is_quiet_and_uses_original_intensity(self):
+        image = Image.new("RGBA", (2, 1))
+        image.putdata([(10, 20, 30, 255), (0, 0, 0, 255)])
+        pan = Image.new("L", (2, 1))
+        pan.putdata([60, 60])
+        old_layers = twms.filter.config.layers
+        twms.filter.config.layers = {"pan": {"name": "Pan"}}
+        stdout = StringIO()
+        try:
+            with mock.patch("twms.filter.getimg", return_value=pan):
+                with contextlib.redirect_stdout(stdout):
+                    filtered = twms.filter.raster(image, ("fusion:pan",))
+        finally:
+            twms.filter.config.layers = old_layers
+
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertEqual(filtered.getpixel((0, 0)), (10, 20, 30, 255))
+        self.assertEqual(filtered.getpixel((1, 0)), (0, 0, 0, 255))
+
+    def test_legacy_rectify_returns_projection_bounds_without_identity_trick(self):
+        bounds = twms.projections.projs["EPSG:3857"]["bounds"]
+        min_point = (float(str(bounds[0])), float(str(bounds[1])))
+        layer = {"prefix": "bounded", "proj": "EPSG:3857"}
+
+        with tempfile.TemporaryDirectory() as cache_root:
+            layer_root = os.path.join(cache_root, "bounded")
+            os.makedirs(layer_root)
+            with open(os.path.join(layer_root, "rectify.txt"), "w") as corr_file:
+                corr_file.write("27.0 53.0 27.1 53.1 user 2026-01-01T00:00:00Z\n")
+            old_cache = twms.correctify.config.tiles_cache
+            twms.correctify.config.tiles_cache = cache_root + os.sep
+            try:
+                self.assertEqual(twms.correctify.rectify(layer, min_point), min_point)
+            finally:
+                twms.correctify.config.tiles_cache = old_cache
 
     def test_legacy_wkt_drawing_without_color_parameter(self):
         status, content_type, body = twms.twms.twms_main(
@@ -444,6 +543,16 @@ class LegacySmokeTest(unittest.TestCase):
 
         self.assertEqual(canvas.tiles[(0, 0)]["im"].size, (32, 32))
         self.assertEqual(canvas.tiles[(0, 0)]["im"].mode, "RGBA")
+
+    def test_legacy_canvas_prepare_pixel_initializes_tile_once(self):
+        canvas = twms.canvas.WmsCanvas(tile_size=(32, 32))
+
+        canvas.PreparePixel(33, 65)
+
+        if "thread" in canvas.tiles[(1, 2)]:
+            canvas.tiles[(1, 2)]["thread"].join()
+        self.assertEqual(canvas.tiles[(1, 2)]["status"], "RD")
+        self.assertEqual(canvas.tiles[(1, 2)]["im"].size, (32, 32))
 
     def test_legacy_canvas_uses_default_upstream_timeout(self):
         canvas = twms.canvas.WmsCanvas(
@@ -574,7 +683,34 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(doc["tiles"], ["http://example.test/osm/{z}/{x}/{y}.png"])
         self.assertEqual(doc["bounds"], [-180.0, -85.0511287798, 180.0, 85.0511287798])
         self.assertEqual(doc["minzoom"], 0)
-        self.assertEqual(doc["maxzoom"], 18)
+        self.assertEqual(doc["maxzoom"], 17)
+
+    def test_tilejson_maxzoom_is_last_requestable_zoom(self):
+        old_layers = twms.twms.config.layers
+        twms.twms.config.layers = {
+            "exclusive": {
+                "name": "Exclusive",
+                "prefix": "exclusive",
+                "ext": "png",
+                "proj": "EPSG:3857",
+                "max_zoom": 7,
+            }
+        }
+        try:
+            status, content_type, body = twms.twms.twms_main(
+                {
+                    "request": "GetTileJSON",
+                    "layers": "exclusive",
+                    "ref": "http://example.test/",
+                }
+            )
+
+            doc = json.loads(body)
+            self.assertEqual(status, 200)
+            self.assertEqual(content_type, "application/json")
+            self.assertEqual(doc["maxzoom"], 6)
+        finally:
+            twms.twms.config.layers = old_layers
 
     def test_tilejson_accepts_layer_bounds_alias(self):
         old_layers = twms.twms.config.layers
@@ -924,6 +1060,16 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(projected[1], -maxbounds)
         self.assertEqual(projected[2], maxbounds)
         self.assertEqual(projected[3], maxbounds)
+
+    def test_pure_projection_roundtrips_match_legacy_smoke_point(self):
+        lon_lat = (27.6, 53.2)
+
+        for srs in ("EPSG:3857", "EPSG:3395"):
+            projected = twms.projections.from4326(lon_lat, srs)
+            roundtripped = twms.projections.to4326(projected, srs)
+
+            self.assertAlmostEqual(roundtripped[0], lon_lat[0], places=6)
+            self.assertAlmostEqual(roundtripped[1], lon_lat[1], places=6)
 
     def test_optional_pyproj_projection_uses_modern_transformer(self):
         if not hasattr(twms.projections.pyproj, "Transformer"):

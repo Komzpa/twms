@@ -10,9 +10,7 @@ from twms import twms
 
 if __name__ != "__main__":
     try:
-        import datetime
-
-        from mod_python import apache, util
+        from mod_python import util
     except ImportError:
         pass
 

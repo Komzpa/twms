@@ -7,13 +7,12 @@
 # and/or modify it under the terms specified in COPYING.
 
 import datetime
-import math
 import os
 import sys
 import time
-import urllib
 from collections import OrderedDict
 from io import BytesIO
+from urllib.request import urlretrieve
 
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
@@ -35,7 +34,6 @@ import wmts
 from bbox import expand_to_point, zoom_for_bbox
 from gpxparse import GPXParser
 from PIL import Image, ImageColor, ImageOps
-from reproject import reproject
 from twms.image_compat import resampling_lanczos
 
 
@@ -168,7 +166,7 @@ def twms_main(data):
             if not os.path.exists(config.gpx_cache):
                 os.makedirs(config.gpx_cache)
             if not os.path.exists(local_gpx):
-                urllib.urlretrieve(
+                urlretrieve(
                     "http://www.openstreetmap.org/trace/%s/data" % g, local_gpx
                 )
             if not track:
@@ -487,7 +485,6 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
         fully=False,
     ):
         return None
-    global cached_objs
     if "prefix" in layer:
         cached = _ram_cache_get(_ram_cache_key(layer, z, x, y))
         if cached is not None:
@@ -506,7 +503,6 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
                     if os.stat(f).st_mtime < (time.time() - layer["cache_ttl"]):
                         os.remove(f)
 
-        gpt_image = False
         try:
             "trying to create local cache directory, if it doesn't exist"
             os.makedirs("/".join(local.split("/")[:-1]))
@@ -631,7 +627,6 @@ def getimg(bbox, request_proj, size, layer, start_time, force):
         bbox_4 = bb4
     bbox = expand_to_point(bbox, bbox_4)
 
-    global cached_objs
     H, W = size
 
     max_zoom = layer.get("max_zoom", config.default_max_zoom)
@@ -664,7 +659,6 @@ def getimg(bbox, request_proj, size, layer, start_time, force):
     out = Image.new("RGBA", (x, y))
     for x in range(from_tile_x, to_tile_x + 1):
         for y in range(to_tile_y, from_tile_y + 1):
-            got_image = False
             im1 = tile_image(layer, zoom, x, y, start_time, real=True)
             if im1:
                 if "prefix" in layer:
