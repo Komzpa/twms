@@ -12,6 +12,7 @@ import os
 import sys
 import time
 import urllib
+from collections import OrderedDict
 from io import BytesIO
 
 sys.path.append(os.path.join(os.path.dirname(__file__)))
@@ -49,8 +50,7 @@ except ImportError:
 OK = 200
 ERROR = 500
 
-cached_objs = {}  # a dict. (layer, z, x, y): PIL image
-cached_hist_list = []
+cached_objs = OrderedDict()  # (layer, z, x, y): PIL image, least-recent first
 
 formats = {
     "image/gif": "GIF",
@@ -61,6 +61,27 @@ formats = {
 }
 
 mimetypes = dict(zip(formats.values(), formats.keys()))
+
+
+def _ram_cache_key(layer, z, x, y):
+    return (layer["prefix"], z, x, y)
+
+
+def _ram_cache_get(key):
+    if key not in cached_objs:
+        return None
+    cached_objs.move_to_end(key)
+    return cached_objs[key]
+
+
+def _ram_cache_put(key, image):
+    limit = int(getattr(config, "max_ram_cached_tiles", 1024))
+    if limit <= 0:
+        return
+    cached_objs[key] = image
+    cached_objs.move_to_end(key)
+    while len(cached_objs) > limit:
+        cached_objs.popitem(last=False)
 
 
 def twms_main(data):
@@ -420,10 +441,11 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
         fully=False,
     ):
         return None
-    global cached_objs, cached_hist_list
+    global cached_objs
     if "prefix" in layer:
-        if (layer["prefix"], z, x, y) in cached_objs:
-            return cached_objs[(layer["prefix"], z, x, y)]
+        cached = _ram_cache_get(_ram_cache_key(layer, z, x, y))
+        if cached is not None:
+            return cached
     if layer.get("cached", True):
         local = (
             config.tiles_cache
@@ -600,16 +622,12 @@ def getimg(bbox, request_proj, size, layer, start_time, force):
             im1 = tile_image(layer, zoom, x, y, start_time, real=True)
             if im1:
                 if "prefix" in layer:
-                    if (layer["prefix"], zoom, x, y) not in cached_objs:
+                    cache_key = _ram_cache_key(layer, zoom, x, y)
+                    if cache_key not in cached_objs:
                         if im1.is_ok:
-                            cached_objs[(layer["prefix"], zoom, x, y)] = im1
-                            cached_hist_list.append((layer["prefix"], zoom, x, y))
+                            _ram_cache_put(cache_key, im1)
                             # print((layer["prefix"], zoom, x, y), cached_objs[(layer["prefix"], zoom, x, y)], file=sys.stderr)
                             # sys.stderr.flush()
-                    if len(cached_objs) >= config.max_ram_cached_tiles:
-                        del cached_objs[cached_hist_list.pop(0)]
-                        # print("Removed tile from cache", file=sys.stderr)
-                        # sys.stderr.flush()
             else:
                 ec = ImageColor.getcolor(
                     layer.get("empty_color", config.default_background), "RGBA"

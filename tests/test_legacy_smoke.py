@@ -5,6 +5,7 @@ import hashlib
 import json
 import math
 import os
+from collections import OrderedDict
 from io import BytesIO
 import tempfile
 import threading
@@ -520,6 +521,33 @@ class LegacySmokeTest(unittest.TestCase):
                 self.assertEqual(image.getpixel((0, 0)), (10, 20, 30, 255))
             finally:
                 twms.twms.config.tiles_cache = old_cache
+
+    def test_legacy_ram_cache_is_lru_bounded(self):
+        old_cached_objs = twms.twms.cached_objs
+        old_limit = twms.twms.config.max_ram_cached_tiles
+        twms.twms.cached_objs = OrderedDict()
+        twms.twms.config.max_ram_cached_tiles = 2
+        layer = {"prefix": "ram"}
+        first = Image.new("RGBA", (1, 1), (1, 1, 1, 255))
+        second = Image.new("RGBA", (1, 1), (2, 2, 2, 255))
+        third = Image.new("RGBA", (1, 1), (3, 3, 3, 255))
+        try:
+            first_key = twms.twms._ram_cache_key(layer, 1, 1, 1)
+            second_key = twms.twms._ram_cache_key(layer, 1, 2, 2)
+            third_key = twms.twms._ram_cache_key(layer, 1, 3, 3)
+            twms.twms._ram_cache_put(first_key, first)
+            twms.twms._ram_cache_put(second_key, second)
+
+            self.assertIs(twms.twms._ram_cache_get(first_key), first)
+
+            twms.twms._ram_cache_put(third_key, third)
+
+            self.assertIn(first_key, twms.twms.cached_objs)
+            self.assertNotIn(second_key, twms.twms.cached_objs)
+            self.assertIn(third_key, twms.twms.cached_objs)
+        finally:
+            twms.twms.cached_objs = old_cached_objs
+            twms.twms.config.max_ram_cached_tiles = old_limit
 
     def test_legacy_gettile_fast_cache_reads_binary_tile(self):
         with tempfile.TemporaryDirectory() as cache_root:
