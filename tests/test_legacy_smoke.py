@@ -1,6 +1,9 @@
 import importlib
 import importlib.metadata
+from io import BytesIO
 import unittest
+
+from PIL import Image
 
 import twms
 import twms.daemon
@@ -50,6 +53,24 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(content_type, "text/html")
         self.assertIn("<table>", body)
         self.assertIn("Yandex Satellite", body)
+
+    def test_gettile_transparent_layer_smoke(self):
+        status, content_type, body = twms.twms.twms_main(
+            {
+                "request": "GetTile",
+                "layers": "transparent",
+                "format": "image/png",
+                "z": "0",
+                "x": "0",
+                "y": "0",
+            }
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "image/png")
+        with Image.open(BytesIO(body)) as image:
+            self.assertEqual(image.size, (256, 256))
+            self.assertEqual(image.mode, "RGBA")
 
     def test_wsgi_application_imports(self):
         self.assertTrue(callable(twms.daemon.application))
