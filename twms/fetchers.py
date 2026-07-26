@@ -14,7 +14,7 @@ import threading
 import time
 from io import BytesIO
 from urllib.error import HTTPError
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 import config
 import projections
@@ -41,6 +41,13 @@ def _cache_stem(z, x, y, this_layer):
         + this_layer["prefix"]
         + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
     )
+
+
+def _upstream_request(url, this_layer):
+    headers = this_layer.get("headers")
+    if headers:
+        return Request(url, headers=headers)
+    return url
 
 
 class TileCache:
@@ -204,7 +211,7 @@ def WMS(z, x, y, this_layer):
             return cache.wait_for_peer()
     try:
         try:
-            contents = urlopen(wms).read()
+            contents = urlopen(_upstream_request(wms, this_layer)).read()
             im = _open_downloaded_image(contents)
             if im is None:
                 raise OSError
@@ -254,7 +261,7 @@ def Tile(z, x, y, this_layer):
             return cache.wait_for_peer()
     try:
         try:
-            contents = urlopen(remote).read()
+            contents = urlopen(_upstream_request(remote, this_layer)).read()
             im = _open_downloaded_image(contents)
             if im is None:
                 raise OSError

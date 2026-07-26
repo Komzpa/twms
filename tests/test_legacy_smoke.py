@@ -573,6 +573,66 @@ class LegacySmokeTest(unittest.TestCase):
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 
+    def test_tile_fetcher_sends_configured_headers(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "headers",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+                "headers": {
+                    "Referer": "https://example.test/map/",
+                    "User-Agent": "twms-test",
+                },
+            }
+            try:
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = self.image_bytes(
+                        (1, 2, 3, 255)
+                    )
+                    twms.fetchers.Tile(2, 3, 4, layer)
+
+                request = urlopen.call_args.args[0]
+                headers = {
+                    key.lower(): value for key, value in request.header_items()
+                }
+                self.assertEqual(request.full_url, "http://example.test/2/3/4.png")
+                self.assertEqual(headers["referer"], "https://example.test/map/")
+                self.assertEqual(headers["user-agent"], "twms-test")
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_wms_fetcher_sends_configured_headers(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "wms-headers",
+                "ext": "png",
+                "remote_url": "http://example.test/wms?",
+                "proj": "EPSG:3857",
+                "headers": {
+                    "Referer": "https://example.test/wms-client/",
+                },
+            }
+            try:
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = self.image_bytes(
+                        (1, 2, 3, 255)
+                    )
+                    twms.fetchers.WMS(2, 3, 4, layer)
+
+                request = urlopen.call_args.args[0]
+                headers = {
+                    key.lower(): value for key, value in request.header_items()
+                }
+                self.assertTrue(request.full_url.startswith("http://example.test/wms?"))
+                self.assertIn("bbox=", request.full_url)
+                self.assertEqual(headers["referer"], "https://example.test/wms-client/")
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
     def test_configured_http_status_tile_is_recorded_as_tne(self):
         with tempfile.TemporaryDirectory() as cache_root:
             old_cache = twms.fetchers.config.tiles_cache

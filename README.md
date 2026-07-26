@@ -72,6 +72,8 @@ Layer dictionaries usually define:
 - `remote_url`: upstream tile URL template; legacy `%s/%s/%s` templates still
   work, and named placeholders `{z}`, `{x}`, `{y}`, `{-y}`, and `{q}` are also
   accepted for readable Slippy/TMS/Bing URLs
+- `headers`: optional upstream HTTP request headers, such as `Referer`,
+  `User-Agent`, or authentication cookies required by a particular source
 - `fetch`: fetcher function, normally `fetchers.Tile`
 - `min_zoom` / `max_zoom`: optional zoom limits
 - `cache_ttl`: optional fresh-cache lifetime in seconds
