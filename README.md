@@ -61,6 +61,10 @@ twms loads Python configuration from:
 2. the packaged `twms/twms.conf`
 3. `twms.conf` in the current script directory
 
+The old Google Code wiki documentation is now kept in this repository under
+[`docs/`](docs/index.md), including an expanded configuration reference,
+installation notes, and filter documentation.
+
 Important settings:
 
 - `tiles_cache`: root directory for the filesystem tile cache
