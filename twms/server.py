@@ -15,6 +15,7 @@ from twms import twms_main
 
 
 tile_route = re.compile(r"/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
+tilejson_route = re.compile(r"/tilejson/(.*)\.json")
 
 
 def request_url(handler):
@@ -27,20 +28,27 @@ def request_url(handler):
 
 def dispatch(path, ref=None):
     parsed = urllib.parse.urlsplit(path)
-    match = tile_route.fullmatch(parsed.path)
-    if match:
-        ext = match.group(5) or ".jpg"
+    tilejson_match = tilejson_route.fullmatch(parsed.path)
+    if tilejson_match:
         data = {
-            "request": "GetTile",
-            "layers": match.group(1),
-            "format": ext.strip(".").lower(),
-            "z": match.group(2),
-            "x": match.group(3),
-            "y": match.group(4),
+            "request": "GetTileJSON",
+            "layers": urllib.parse.unquote(tilejson_match.group(1)),
         }
     else:
-        data = dict(urllib.parse.parse_qsl(parsed.query))
-        data = dict((key.lower(), data[key]) for key in data)
+        match = tile_route.fullmatch(parsed.path)
+        if match:
+            ext = match.group(5) or ".jpg"
+            data = {
+                "request": "GetTile",
+                "layers": match.group(1),
+                "format": ext.strip(".").lower(),
+                "z": match.group(2),
+                "x": match.group(3),
+                "y": match.group(4),
+            }
+        else:
+            data = dict(urllib.parse.parse_qsl(parsed.query))
+            data = dict((key.lower(), data[key]) for key in data)
 
     if ref and "ref" not in data:
         data["ref"] = ref

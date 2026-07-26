@@ -1,5 +1,6 @@
 import importlib
 import importlib.metadata
+import json
 from io import BytesIO
 import threading
 import unittest
@@ -76,6 +77,26 @@ class LegacySmokeTest(unittest.TestCase):
             self.assertEqual(image.size, (256, 256))
             self.assertEqual(image.mode, "RGBA")
 
+    def test_tilejson_smoke(self):
+        status, content_type, body = twms.twms.twms_main(
+            {
+                "request": "GetTileJSON",
+                "layers": "osm",
+                "ref": "http://example.test/",
+            }
+        )
+
+        doc = json.loads(body)
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "application/json")
+        self.assertEqual(doc["tilejson"], "3.0.0")
+        self.assertEqual(doc["name"], "OpenStreetMap mapnik")
+        self.assertEqual(doc["scheme"], "xyz")
+        self.assertEqual(doc["tiles"], ["http://example.test/osm/{z}/{x}/{y}.png"])
+        self.assertEqual(doc["bounds"], [-180.0, -85.0511287798, 180.0, 85.0511287798])
+        self.assertEqual(doc["minzoom"], 0)
+        self.assertEqual(doc["maxzoom"], 18)
+
     def test_wsgi_application_imports(self):
         self.assertTrue(callable(twms.daemon.application))
 
@@ -101,6 +122,12 @@ class LegacySmokeTest(unittest.TestCase):
                 with Image.open(BytesIO(body)) as image:
                     self.assertEqual(image.size, (256, 256))
                     self.assertEqual(image.mode, "RGBA")
+
+            with urllib.request.urlopen(base + "/tilejson/osm.json") as response:
+                doc = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertIn("application/json", response.headers["Content-Type"])
+                self.assertEqual(doc["tiles"], [base + "/osm/{z}/{x}/{y}.png"])
         finally:
             httpd.shutdown()
             httpd.server_close()

@@ -28,6 +28,7 @@ import drawing
 import fetchers
 import overview
 import projections
+import tilejson
 from bbox import expand_to_point, zoom_for_bbox
 from gpxparse import GPXParser
 from PIL import Image, ImageColor, ImageOps
@@ -109,6 +110,17 @@ def twms_main(data):
     if req_type == "GetCapabilities":
         content_type, resp = capabilities.get(version, ref)
         return (OK, content_type, resp)
+    if req_type.lower() in ("gettilejson", "tilejson"):
+        try:
+            resp = tilejson.dumps(
+                config,
+                data.get("layers", ""),
+                ref,
+                format_name=data.get("format", ""),
+            )
+            return (OK, "application/json", resp)
+        except KeyError as exc:
+            return (400, "text/plain", str(exc))
 
     layer = data.get("layers", config.default_layers).split(",")
     if ("layers" in data) and not layer[0]:
