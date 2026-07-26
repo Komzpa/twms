@@ -7,8 +7,6 @@
 # and/or modify it under the terms specified in COPYING.
 
 import datetime
-import importlib.machinery
-import importlib.util
 import math
 import os
 import sys
@@ -16,34 +14,12 @@ import time
 import urllib
 from io import BytesIO
 
-# import config
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
-
-def load_config(path):
-    loader = importlib.machinery.SourceFileLoader("twms.config", path)
-    spec = importlib.util.spec_from_loader("twms.config", loader)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["twms.config"] = module
-    sys.modules["config"] = module
-    loader.exec_module(module)
-    return module
+from twms.config_loader import load_default_config
 
 
-config_path = "/etc/twms/twms.conf"
-if os.path.exists(config_path):
-    config = load_config(config_path)
-else:
-    try:
-        config_path = os.path.join(os.path.dirname(__file__), "twms.conf")
-        config = load_config(config_path)
-    except:
-        config_path = os.path.join(os.path.realpath(sys.path[0]), "twms.conf")
-        config = load_config(config_path)
-    sys.stderr.write(
-        "Configuration file not found, using defaults from %s\n" % config_path
-    )
-    sys.stderr.flush()
+config = load_default_config()
 
 import bbox
 import capabilities

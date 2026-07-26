@@ -16,7 +16,7 @@ except ImportError:
     NUMPY_AVAILABLE = False
 import datetime
 
-from twms import getimg
+from twms.twms import getimg
 
 
 try:

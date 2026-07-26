@@ -50,5 +50,8 @@ jobs:
           print(type(twms.daemon.application).__name__)
           PY
 
+      - name: Run legacy smoke tests
+        run: python -m unittest discover -s tests
+
       - name: Build source and wheel distributions
         run: python -m build
