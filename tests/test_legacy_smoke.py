@@ -1184,6 +1184,44 @@ class LegacySmokeTest(unittest.TestCase):
                 else:
                     del twms.twms.config.cache_tile_responses
 
+    def test_filter_alias_matches_response_cache_keys(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = getattr(twms.twms.config, "cache_tile_responses", None)
+            had_cache = hasattr(twms.twms.config, "cache_tile_responses")
+            twms.twms.config.cache_tile_responses = {
+                ("EPSG:3857", ("transparent",), ("bw",), 256, 256, (), "PNG"): (
+                    cache_root,
+                    "png",
+                ),
+            }
+            try:
+                path = os.path.join(cache_root, "2", "3", "4.png")
+                os.makedirs(os.path.dirname(path))
+                expected = self.image_bytes((82, 92, 102, 255))
+                with open(path, "wb") as cached_tile:
+                    cached_tile.write(expected)
+
+                status, content_type, body = twms.twms.twms_main(
+                    {
+                        "request": "GetTile",
+                        "layers": "transparent",
+                        "format": "image/png",
+                        "z": "2",
+                        "x": "3",
+                        "y": "4",
+                        "filter": "bw",
+                    }
+                )
+
+                self.assertEqual(status, 200)
+                self.assertEqual(content_type, "image/png")
+                self.assertEqual(body, expected)
+            finally:
+                if had_cache:
+                    twms.twms.config.cache_tile_responses = old_cache
+                else:
+                    del twms.twms.config.cache_tile_responses
+
     def test_legacy_response_cache_writes_binary_tile(self):
         with tempfile.TemporaryDirectory() as cache_root:
             old_cache = getattr(twms.twms.config, "cache_tile_responses", None)

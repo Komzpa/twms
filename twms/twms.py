@@ -235,7 +235,7 @@ def twms_main(data):
         force = force.split(",")
     force = tuple(force)
 
-    filt = data.get("filt", "")
+    filt = data.get("filt", data.get("filter", ""))
     if filt != "":
         filt = filt.split(",")
     filt = tuple(filt)
