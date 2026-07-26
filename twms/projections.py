@@ -102,7 +102,11 @@ projs = {
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
 }
-proj_alias = {"EPSG:900913": "EPSG:3857", "EPSG:3785": "EPSG:3857"}
+proj_alias = {
+    "CRS:84": "EPSG:4326",
+    "EPSG:900913": "EPSG:3857",
+    "EPSG:3785": "EPSG:3857",
+}
 
 
 def _c4326t3857(t1, t2, lon, lat):

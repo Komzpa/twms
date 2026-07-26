@@ -76,6 +76,54 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(content_type, "application/vnd.ogc.wms_xml")
         self.assertIn("<WMT_MS_Capabilities", body)
         self.assertIn("OpenStreetMap mapnik", body)
+        self.assertNotIn("<SRS>CRS:84</SRS>", body)
+
+    def test_wms_130_capabilities_smoke(self):
+        status, content_type, body = twms.twms.twms_main(
+            {
+                "SERVICE": "WMS",
+                "REQUEST": "GetCapabilities",
+                "VERSION": "1.3.0",
+                "ref": "http://example.test/wms",
+            }
+        )
+
+        root = ET.fromstring(body)
+        namespaces = {"wms": "http://www.opengis.net/wms"}
+        osm = root.find(
+            "./wms:Capability/wms:Layer/wms:Layer[wms:Name='osm']",
+            namespaces,
+        )
+        crs_values = [element.text for element in osm.findall("wms:CRS", namespaces)]
+        bbox = osm.find("wms:BoundingBox", namespaces)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "text/xml")
+        self.assertEqual(root.tag, "{http://www.opengis.net/wms}WMS_Capabilities")
+        self.assertEqual(root.attrib["version"], "1.3.0")
+        self.assertIn("CRS:84", crs_values)
+        self.assertIn("EPSG:3857", crs_values)
+        self.assertEqual(bbox.attrib["CRS"], "EPSG:3857")
+        self.assertLess(float(bbox.attrib["minx"]), -20000000)
+        self.assertGreater(float(bbox.attrib["maxx"]), 20000000)
+
+    def test_wms_getmap_accepts_crs_parameter(self):
+        status, content_type, body = twms.twms.twms_main(
+            {
+                "request": "GetMap",
+                "layers": "transparent",
+                "format": "image/png",
+                "width": "32",
+                "height": "32",
+                "crs": "CRS:84",
+                "bbox": "-1,-1,1,1",
+            }
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "image/png")
+        with Image.open(BytesIO(body)) as image:
+            self.assertEqual(image.size, (32, 32))
 
     def test_overview_smoke(self):
         status, content_type, body = twms.twms.twms_main({"ref": "http://example.test/"})

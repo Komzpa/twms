@@ -67,6 +67,7 @@ def twms_main(data):
     data - dictionary of params. 
     returns (error_code, content_type, resp)
     """
+    data = dict((key.lower(), data[key]) for key in data)
     # import the filter here due to a circular dependency
     # TODO: break the loop
     import filter
@@ -75,7 +76,7 @@ def twms_main(data):
 
     content_type = "text/html"
     resp = ""
-    srs = data.get("srs", "EPSG:4326")
+    srs = data.get("crs", data.get("srs", "EPSG:4326"))
     gpx = data.get("gpx", "").split(",")
     if gpx == [""]:
         gpx = []
@@ -106,13 +107,14 @@ def twms_main(data):
             tracks.append(track)
 
     req_type = data.get("request", "GetMap")
+    req_type_lower = req_type.lower()
     version = data.get("version", "1.1.1")
     ref = data.get("ref", config.service_url)
-    if data.get("service", "").lower() == "wmts" and req_type.lower() == "getcapabilities":
+    if data.get("service", "").lower() == "wmts" and req_type_lower == "getcapabilities":
         return (OK, "text/xml", wmts.capabilities(config, ref))
-    if req_type.lower() == "getwmtscapabilities":
+    if req_type_lower == "getwmtscapabilities":
         return (OK, "text/xml", wmts.capabilities(config, ref))
-    if data.get("service", "").lower() == "wmts" and req_type.lower() == "gettile":
+    if data.get("service", "").lower() == "wmts" and req_type_lower == "gettile":
         if "layers" not in data and "layer" in data:
             data["layers"] = data["layer"]
         if "z" not in data and "tilematrix" in data:
@@ -121,10 +123,10 @@ def twms_main(data):
             data["x"] = data["tilecol"]
         if "y" not in data and "tilerow" in data:
             data["y"] = data["tilerow"]
-    if req_type == "GetCapabilities":
+    if req_type_lower == "getcapabilities":
         content_type, resp = capabilities.get(version, ref)
         return (OK, content_type, resp)
-    if req_type.lower() in ("gettilejson", "tilejson"):
+    if req_type_lower in ("gettilejson", "tilejson"):
         try:
             resp = tilejson.dumps(
                 config,
@@ -140,7 +142,7 @@ def twms_main(data):
     if ("layers" in data) and not layer[0]:
         layer = ["transparent"]
 
-    if req_type == "GetCorrections":
+    if req_type_lower == "getcorrections":
         points = data.get("points", data.get("POINTS", "")).split("=")
         resp = ""
         points = [a.split(",") for a in points]
@@ -178,12 +180,12 @@ def twms_main(data):
     width = 0
     height = 0
     resp_cache_path, resp_ext = "", ""
-    if req_type == "GetTile":
+    if req_type_lower == "gettile":
         width = 256
         height = 256
         height = int(data.get("height", height))
         width = int(data.get("width", width))
-        srs = data.get("srs", "EPSG:3857")
+        srs = data.get("crs", data.get("srs", "EPSG:3857"))
         x = int(data.get("x", 0))
         y = int(data.get("y", 0))
         z = int(data.get("z", 1)) + 1
