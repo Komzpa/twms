@@ -219,6 +219,31 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(canvas.tiles[(0, 0)]["im"].size, (32, 32))
         self.assertEqual(canvas.tiles[(0, 0)]["im"].mode, "RGBA")
 
+    def test_legacy_canvas_uses_default_upstream_timeout(self):
+        canvas = twms.canvas.WmsCanvas(
+            wms_url="http://example.test/wms?",
+            proj="EPSG:3857",
+        )
+
+        with mock.patch("twms.canvas.urlopen") as urlopen:
+            urlopen.return_value.read.return_value = self.image_bytes((1, 2, 3, 255))
+            canvas.FetchTile(0, 0)
+
+        urlopen.assert_called_once_with(mock.ANY, timeout=30)
+
+    def test_legacy_canvas_can_preserve_unbounded_upstream_wait(self):
+        canvas = twms.canvas.WmsCanvas(
+            wms_url="http://example.test/wms?",
+            proj="EPSG:3857",
+            timeout=None,
+        )
+
+        with mock.patch("twms.canvas.urlopen") as urlopen:
+            urlopen.return_value.read.return_value = self.image_bytes((1, 2, 3, 255))
+            canvas.FetchTile(0, 0)
+
+        urlopen.assert_called_once_with(mock.ANY, timeout=None)
+
     def test_getimg_resize_works_with_current_pillow(self):
         tile = Image.new("RGBA", (256, 256), (1, 2, 3, 255))
         tile.is_ok = True
