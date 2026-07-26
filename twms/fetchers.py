@@ -50,6 +50,14 @@ def _upstream_request(url, this_layer):
     return url
 
 
+def _outside_zoom_limits(z, this_layer):
+    if "min_zoom" in this_layer and z < this_layer["min_zoom"]:
+        return True
+    if "max_zoom" in this_layer and z >= this_layer["max_zoom"]:
+        return True
+    return False
+
+
 class TileCache:
     """Small filesystem cache helper.
 
@@ -188,9 +196,8 @@ def threadwrapper(z, x, y, this_layer, zhash):
 
 
 def WMS(z, x, y, this_layer):
-    if "max_zoom" in this_layer:
-        if z >= this_layer["max_zoom"]:
-            return None
+    if _outside_zoom_limits(z, this_layer):
+        return None
     wms = this_layer["remote_url"]
     req_proj = this_layer.get("wms_proj", this_layer["proj"])
     width = 384  # using larger source size to rescale better in python
@@ -243,9 +250,8 @@ def WMS(z, x, y, this_layer):
 def Tile(z, x, y, this_layer):
     global OSError, IOError
     d_tuple = z, x, y
-    if "max_zoom" in this_layer:
-        if z >= this_layer["max_zoom"]:
-            return None
+    if _outside_zoom_limits(z, this_layer):
+        return None
     if "transform_tile_number" in this_layer:
         d_tuple = this_layer["transform_tile_number"](z, x, y)
 

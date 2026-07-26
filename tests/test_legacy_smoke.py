@@ -573,6 +573,49 @@ class LegacySmokeTest(unittest.TestCase):
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 
+    def test_tile_fetcher_respects_min_zoom(self):
+        layer = {
+            "prefix": "minzoom",
+            "ext": "png",
+            "remote_url": "http://example.test/%s/%s/%s.png",
+            "min_zoom": 3,
+        }
+
+        with mock.patch("twms.fetchers.urlopen") as urlopen:
+            image = twms.fetchers.Tile(2, 3, 4, layer)
+
+        self.assertIsNone(image)
+        urlopen.assert_not_called()
+
+    def test_wms_fetcher_respects_min_zoom(self):
+        layer = {
+            "prefix": "wms-minzoom",
+            "ext": "png",
+            "remote_url": "http://example.test/wms?",
+            "proj": "EPSG:3857",
+            "min_zoom": 3,
+        }
+
+        with mock.patch("twms.fetchers.urlopen") as urlopen:
+            image = twms.fetchers.WMS(2, 3, 4, layer)
+
+        self.assertIsNone(image)
+        urlopen.assert_not_called()
+
+    def test_tile_fetcher_keeps_legacy_exclusive_max_zoom(self):
+        layer = {
+            "prefix": "maxzoom",
+            "ext": "png",
+            "remote_url": "http://example.test/%s/%s/%s.png",
+            "max_zoom": 2,
+        }
+
+        with mock.patch("twms.fetchers.urlopen") as urlopen:
+            image = twms.fetchers.Tile(2, 3, 4, layer)
+
+        self.assertIsNone(image)
+        urlopen.assert_not_called()
+
     def test_tile_fetcher_sends_configured_headers(self):
         with tempfile.TemporaryDirectory() as cache_root:
             old_cache = twms.fetchers.config.tiles_cache
