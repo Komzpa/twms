@@ -164,6 +164,9 @@ JOSM can also consume the generated imagery list:
 http://127.0.0.1:8080/josm/imagery.xml
 ```
 
+The generated list includes configured layer bounds, zoom limits, overlays,
+attribution URLs, and known no-tile MD5 checksums when those are present.
+
 For TWMS-specific parameters, use the WMS-style `GetTile` URL instead:
 
 ```text

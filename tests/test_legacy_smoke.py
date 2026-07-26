@@ -395,13 +395,82 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(content_type, "text/xml")
         self.assertEqual(root.tag, "{http://josm.openstreetmap.de/maps-1.0}imagery")
+        self.assertEqual(osm.find("josm:default", namespaces).text, "true")
         self.assertEqual(osm.find("josm:name", namespaces).text, "OpenStreetMap mapnik")
         self.assertEqual(osm.find("josm:type", namespaces).text, "tms")
         self.assertEqual(
             osm.find("josm:url", namespaces).text,
             "http://example.test/osm/{zoom}/{x}/{y}.png",
         )
+        self.assertEqual(
+            osm.find("josm:description", namespaces).text,
+            "OpenStreetMap mapnik",
+        )
+        self.assertEqual(osm.find("josm:valid-georeference", namespaces).text, "true")
         self.assertEqual(landsat.find("josm:max-zoom", namespaces).text, "11")
+
+    def test_josm_imagery_xml_layer_metadata(self):
+        old_layers = twms.twms.config.layers
+        twms.twms.config.layers = {
+            "metadata": {
+                "name": "Metadata",
+                "prefix": "metadata",
+                "ext": "png",
+                "proj": "EPSG:3857",
+                "bounds": (1.0, 2.0, 3.0, 4.0),
+                "overlay": True,
+                "provider_url": "http://provider.example/",
+                "dead_tile": {
+                    "md5": {
+                        "11111111111111111111111111111111",
+                        "22222222222222222222222222222222",
+                    },
+                },
+                "min_zoom": 3,
+                "max_zoom": 7,
+            }
+        }
+        try:
+            status, content_type, body = twms.twms.twms_main(
+                {
+                    "request": "GetJOSMImagery",
+                    "ref": "http://example.test/",
+                }
+            )
+
+            namespaces = {"josm": "http://josm.openstreetmap.de/maps-1.0"}
+            root = ET.fromstring(body)
+            entry = root.find("./josm:entry[josm:id='twms-metadata']", namespaces)
+            bounds = entry.find("josm:bounds", namespaces)
+            checksums = entry.findall("josm:no-tile-checksum", namespaces)
+
+            self.assertEqual(status, 200)
+            self.assertEqual(content_type, "text/xml")
+            self.assertEqual(entry.attrib["overlay"], "true")
+            self.assertEqual(
+                entry.find("josm:attribution-url", namespaces).text,
+                "http://provider.example/",
+            )
+            self.assertEqual(
+                bounds.attrib,
+                {
+                    "min-lon": "1.0",
+                    "min-lat": "2.0",
+                    "max-lon": "3.0",
+                    "max-lat": "4.0",
+                },
+            )
+            self.assertEqual(
+                [(item.attrib["type"], item.attrib["value"]) for item in checksums],
+                [
+                    ("MD5", "11111111111111111111111111111111"),
+                    ("MD5", "22222222222222222222222222222222"),
+                ],
+            )
+            self.assertEqual(entry.find("josm:min-zoom", namespaces).text, "3")
+            self.assertEqual(entry.find("josm:max-zoom", namespaces).text, "6")
+        finally:
+            twms.twms.config.layers = old_layers
 
     def test_wmts_capabilities_smoke(self):
         status, content_type, body = twms.twms.twms_main(
