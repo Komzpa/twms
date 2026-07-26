@@ -268,6 +268,68 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(image.size, (32, 32))
         self.assertEqual(image.getpixel((0, 0)), (1, 2, 3, 255))
 
+    def test_legacy_empty_color_overlay_is_transparent(self):
+        base = Image.new("RGBA", (2, 1), (10, 20, 30, 255))
+        overlay = Image.new("RGBA", (2, 1), (255, 255, 255, 255))
+        overlay.putpixel((1, 0), (255, 0, 0, 255))
+        base.is_ok = True
+        overlay.is_ok = True
+        layers = {
+            "base": {"empty_color": "#000000"},
+            "overlay": {"empty_color": "#ffffff"},
+        }
+
+        with mock.patch.object(twms.twms.config, "layers", layers):
+            with mock.patch.object(twms.twms, "getimg", side_effect=[base, overlay]):
+                status, content_type, body = twms.twms.twms_main(
+                    {
+                        "request": "GetMap",
+                        "layers": "base,overlay",
+                        "format": "image/png",
+                        "bbox": "0,0,1,1",
+                        "width": "2",
+                        "height": "1",
+                    }
+                )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "image/png")
+        with Image.open(BytesIO(body)) as image:
+            image = image.convert("RGBA")
+            self.assertEqual(image.getpixel((0, 0)), (10, 20, 30, 255))
+            self.assertEqual(image.getpixel((1, 0)), (132, 10, 15, 255))
+
+    def test_legacy_empty_color_delta_applies_per_channel(self):
+        base = Image.new("RGBA", (1, 1), (10, 20, 30, 255))
+        overlay = Image.new("RGBA", (1, 1), (255, 254, 253, 255))
+        base.is_ok = True
+        overlay.is_ok = True
+        layers = {
+            "base": {"empty_color": "#000000"},
+            "overlay": {
+                "empty_color": "#ffffff",
+                "empty_color_delta": 2,
+            },
+        }
+
+        with mock.patch.object(twms.twms.config, "layers", layers):
+            with mock.patch.object(twms.twms, "getimg", side_effect=[base, overlay]):
+                status, content_type, body = twms.twms.twms_main(
+                    {
+                        "request": "GetMap",
+                        "layers": "base,overlay",
+                        "format": "image/png",
+                        "bbox": "0,0,1,1",
+                        "width": "1",
+                        "height": "1",
+                    }
+                )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "image/png")
+        with Image.open(BytesIO(body)) as image:
+            self.assertEqual(image.convert("RGBA").getpixel((0, 0)), (10, 20, 30, 255))
+
     def test_tilejson_smoke(self):
         status, content_type, body = twms.twms.twms_main(
             {

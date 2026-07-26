@@ -290,19 +290,19 @@ def twms_main(data):
 
         if "empty_color" in config.layers[ll]:
             ec = ImageColor.getcolor(config.layers[ll]["empty_color"], "RGBA")
-            sec = set(ec)
+            sec = {ec}
             if "empty_color_delta" in config.layers[ll]:
                 delta = config.layers[ll]["empty_color_delta"]
-                for tr in range(-delta, delta):
-                    for tg in range(-delta, delta):
-                        for tb in range(-delta, delta):
+                for tr in range(-delta, delta + 1):
+                    for tg in range(-delta, delta + 1):
+                        for tb in range(-delta, delta + 1):
                             if (
                                 (ec[0] + tr) >= 0
                                 and (ec[0] + tr) < 256
-                                and (ec[1] + tr) >= 0
-                                and (ec[1] + tr) < 256
-                                and (ec[2] + tr) >= 0
-                                and (ec[2] + tr) < 256
+                                and (ec[1] + tg) >= 0
+                                and (ec[1] + tg) < 256
+                                and (ec[2] + tb) >= 0
+                                and (ec[2] + tb) < 256
                             ):
                                 sec.add((ec[0] + tr, ec[1] + tg, ec[2] + tb, ec[3]))
             i2l = im2.load()
