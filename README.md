@@ -46,6 +46,13 @@ On GitHub, CI builds Windows executable artifacts for both entry points:
 - `twms.exe`
 - `twms-webpy.exe`
 
+Optional launcher templates are shipped under `share/twms/contrib`:
+
+- `twms.bat` starts `python -m twms` minimized for small Windows/JOSM proxy
+  deployments.
+- `twms.desktop` is a simple terminal desktop-entry template for Linux
+  desktops or downstream packages.
+
 ## Configuration
 
 twms loads Python configuration from:

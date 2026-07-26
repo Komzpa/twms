@@ -62,6 +62,7 @@ setup(
         (os.path.join('share', 'doc', __name__), ['COPYING']),
         (os.path.join('share', 'doc', __name__), glob('*.md')),
         (os.path.join('share', __name__), glob('*.jpg')),
-        (os.path.join('share', __name__, 'tools'), glob(os.path.join('tools', '*.py')))
+        (os.path.join('share', __name__, 'tools'), glob(os.path.join('tools', '*.py'))),
+        (os.path.join('share', __name__, 'contrib'), glob(os.path.join('contrib', '*'))),
     ] + man_files('*.1') + config_files(),
 )
