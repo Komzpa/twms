@@ -13,6 +13,10 @@ on:
       - published
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   package-smoke:
     name: Package smoke (${{ matrix.os }}, Python ${{ matrix.python-version }})
