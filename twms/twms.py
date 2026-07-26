@@ -26,6 +26,7 @@ import capabilities
 import correctify
 import drawing
 import fetchers
+import josm
 import overview
 import projections
 import tilejson
@@ -142,6 +143,8 @@ def twms_main(data):
             return (OK, "application/json", resp)
         except KeyError as exc:
             return (400, "text/plain", str(exc))
+    if req_type_lower in ("getjosmimagery", "josmimagery", "getjosmmaps"):
+        return (OK, "text/xml", josm.xml(config, ref))
 
     layer = data.get("layers", config.default_layers).split(",")
     if ("layers" in data) and not layer[0]:

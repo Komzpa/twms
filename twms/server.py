@@ -16,6 +16,7 @@ from twms import twms_main
 
 tile_route = re.compile(r"/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
 tilejson_route = re.compile(r"/tilejson/(.*)\.json")
+josm_imagery_routes = {"/josm/imagery.xml", "/maps.xml"}
 wmts_capabilities_route = "/wmts/1.0.0/WMTSCapabilities.xml"
 wmts_tile_route = re.compile(
     r"/wmts/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?"
@@ -37,6 +38,10 @@ def dispatch(path, ref=None):
         data = {
             "request": "GetTileJSON",
             "layers": urllib.parse.unquote(tilejson_match.group(1)),
+        }
+    elif parsed.path in josm_imagery_routes:
+        data = {
+            "request": "GetJOSMImagery",
         }
     elif parsed.path == wmts_capabilities_route:
         data = {

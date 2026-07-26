@@ -134,6 +134,12 @@ For a normal local proxy, add a TMS imagery entry such as:
 tms:http://127.0.0.1:8080/osm/{zoom}/{x}/{y}.png
 ```
 
+JOSM can also consume the generated imagery list:
+
+```text
+http://127.0.0.1:8080/josm/imagery.xml
+```
+
 For TWMS-specific parameters, use the WMS-style `GetTile` URL instead:
 
 ```text

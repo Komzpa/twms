@@ -61,6 +61,7 @@ class LegacySmokeTest(unittest.TestCase):
             "twms.filter",
             "twms.gpxparse",
             "twms.image_compat",
+            "twms.josm",
             "twms.overview",
             "twms.projections",
             "twms.reproject",
@@ -252,6 +253,30 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertEqual(doc["bounds"], [-180.0, -85.0511287798, 180.0, 85.0511287798])
         self.assertEqual(doc["minzoom"], 0)
         self.assertEqual(doc["maxzoom"], 18)
+
+    def test_josm_imagery_xml_smoke(self):
+        status, content_type, body = twms.twms.twms_main(
+            {
+                "request": "GetJOSMImagery",
+                "ref": "http://example.test/",
+            }
+        )
+
+        namespaces = {"josm": "http://josm.openstreetmap.de/maps-1.0"}
+        root = ET.fromstring(body)
+        osm = root.find("./josm:entry[josm:id='twms-osm']", namespaces)
+        landsat = root.find("./josm:entry[josm:id='twms-landsat']", namespaces)
+
+        self.assertEqual(status, 200)
+        self.assertEqual(content_type, "text/xml")
+        self.assertEqual(root.tag, "{http://josm.openstreetmap.de/maps-1.0}imagery")
+        self.assertEqual(osm.find("josm:name", namespaces).text, "OpenStreetMap mapnik")
+        self.assertEqual(osm.find("josm:type", namespaces).text, "tms")
+        self.assertEqual(
+            osm.find("josm:url", namespaces).text,
+            "http://example.test/osm/{zoom}/{x}/{y}.png",
+        )
+        self.assertEqual(landsat.find("josm:max-zoom", namespaces).text, "11")
 
     def test_wmts_capabilities_smoke(self):
         status, content_type, body = twms.twms.twms_main(
@@ -648,6 +673,17 @@ class LegacySmokeTest(unittest.TestCase):
                 self.assertEqual(response.status, 200)
                 self.assertIn("application/json", response.headers["Content-Type"])
                 self.assertEqual(doc["tiles"], [base + "/osm/{z}/{x}/{y}.png"])
+
+            with urllib.request.urlopen(base + "/josm/imagery.xml") as response:
+                root = ET.fromstring(response.read().decode("utf-8"))
+                namespaces = {"josm": "http://josm.openstreetmap.de/maps-1.0"}
+                osm = root.find("./josm:entry[josm:id='twms-osm']", namespaces)
+                self.assertEqual(response.status, 200)
+                self.assertIn("text/xml", response.headers["Content-Type"])
+                self.assertEqual(
+                    osm.find("josm:url", namespaces).text,
+                    base + "/osm/{zoom}/{x}/{y}.png",
+                )
 
             with urllib.request.urlopen(
                 base + "/wmts/1.0.0/WMTSCapabilities.xml"

@@ -30,6 +30,7 @@ __all__ = [
     "correctify",
     "drawing",
     "image_compat",
+    "josm",
     "projections",
     "reproject",
     "wmts",
