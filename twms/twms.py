@@ -84,6 +84,17 @@ def _ram_cache_put(key, image):
         cached_objs.popitem(last=False)
 
 
+def _response_cache_entry(
+    response_cache, srs, layers, filt, width, height, force, image_format
+):
+    key_parts = (srs, tuple(layers), filt, width, height, force)
+    for format_key in (image_format, mimetypes.get(image_format)):
+        key = key_parts + (format_key,)
+        if key in response_cache:
+            return response_cache[key]
+    return None
+
+
 def twms_main(data):
     """
     Do main TWMS work. 
@@ -219,19 +230,18 @@ def twms_main(data):
         y = int(data.get("y", 0))
         z = int(data.get("z", 1)) + 1
         if "cache_tile_responses" in dir(config) and not wkt and (len(gpx) == 0):
-            if (
+            response_cache = _response_cache_entry(
+                config.cache_tile_responses,
                 srs,
-                tuple(layer),
+                layer,
                 filt,
                 width,
                 height,
                 force,
                 format,
-            ) in config.cache_tile_responses:
-
-                resp_cache_path, resp_ext = config.cache_tile_responses[
-                    (srs, tuple(layer), filt, width, height, force, format)
-                ]
+            )
+            if response_cache:
+                resp_cache_path, resp_ext = response_cache
                 resp_cache_path = resp_cache_path + "/%s/%s/%s.%s" % (
                     z - 1,
                     x,
