@@ -632,6 +632,58 @@ class LegacySmokeTest(unittest.TestCase):
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 
+    def test_wms_fetcher_keeps_legacy_url_append(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "wms-legacy-url",
+                "ext": "png",
+                "remote_url": "http://example.test/wms?",
+                "proj": "EPSG:3857",
+            }
+            try:
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = self.image_bytes(
+                        (1, 2, 3, 255)
+                    )
+                    twms.fetchers.WMS(2, 3, 4, layer)
+
+                url = urlopen.call_args.args[0]
+                self.assertIsInstance(url, str)
+                self.assertTrue(url.startswith("http://example.test/wms?bbox="))
+                self.assertIn("&width=384&height=384&srs=EPSG:3857", url)
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_wms_fetcher_formats_named_url_placeholders(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "wms-template-url",
+                "ext": "png",
+                "remote_url": (
+                    "http://example.test/wms?SERVICE=WMS&REQUEST=GetMap"
+                    "&WIDTH={width}&HEIGHT={height}&CRS={proj}&BBOX={bbox}"
+                ),
+                "proj": "EPSG:3857",
+            }
+            try:
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = self.image_bytes(
+                        (1, 2, 3, 255)
+                    )
+                    twms.fetchers.WMS(2, 3, 4, layer)
+
+                url = urlopen.call_args.args[0]
+                self.assertIsInstance(url, str)
+                self.assertIn("WIDTH=384&HEIGHT=384&CRS=EPSG:3857&BBOX=", url)
+                self.assertNotIn("srs=EPSG:3857", url)
+                self.assertEqual(url.count("BBOX="), 1)
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
     def test_tile_fetcher_respects_min_zoom(self):
         layer = {
             "prefix": "minzoom",

@@ -69,9 +69,10 @@ Layer dictionaries usually define:
 - `prefix`: cache subdirectory
 - `ext`: tile extension such as `jpg` or `png`
 - `proj`: tile pyramid projection, commonly `EPSG:3857` or `EPSG:3395`
-- `remote_url`: upstream tile URL template; legacy `%s/%s/%s` templates still
-  work, and named placeholders `{z}`, `{x}`, `{y}`, `{-y}`, and `{q}` are also
-  accepted for readable Slippy/TMS/Bing URLs
+- `remote_url`: upstream tile/WMS URL template; legacy tile `%s/%s/%s`
+  templates still work, named tile placeholders `{z}`, `{x}`, `{y}`, `{-y}`,
+  and `{q}` are accepted for readable Slippy/TMS/Bing URLs, and WMS upstream
+  templates may use `{bbox}`, `{width}`, `{height}`, and `{proj}`
 - `headers`: optional upstream HTTP request headers, such as `Referer`,
   `User-Agent`, or authentication cookies required by a particular source
 - `fetch`: fetcher function, normally `fetchers.Tile`

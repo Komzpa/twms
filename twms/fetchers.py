@@ -59,6 +59,26 @@ def _outside_zoom_limits(z, this_layer):
     return False
 
 
+def _format_wms_url(template, bbox, width, height, projection):
+    if any(
+        placeholder in template
+        for placeholder in ("{bbox}", "{width}", "{height}", "{proj}")
+    ):
+        return (
+            template.replace("{bbox}", bbox)
+            .replace("{width}", str(width))
+            .replace("{height}", str(height))
+            .replace("{proj}", projection)
+        )
+
+    return template + "bbox=%s&width=%s&height=%s&srs=%s" % (
+        bbox,
+        width,
+        height,
+        projection,
+    )
+
+
 class TileCache:
     """Small filesystem cache helper.
 
@@ -199,16 +219,15 @@ def threadwrapper(z, x, y, this_layer, zhash):
 def WMS(z, x, y, this_layer):
     if _outside_zoom_limits(z, this_layer):
         return None
-    wms = this_layer["remote_url"]
     req_proj = this_layer.get("wms_proj", this_layer["proj"])
     width = 384  # using larger source size to rescale better in python
     height = 384
     cache = TileCache(z, x, y, this_layer)
-    tile_bbox = "bbox=%s,%s,%s,%s" % tuple(
+    tile_bbox = "%s,%s,%s,%s" % tuple(
         projections.from4326(projections.bbox_by_tile(z, x, y, req_proj), req_proj)
     )
 
-    wms += tile_bbox + "&width=%s&height=%s&srs=%s" % (width, height, req_proj)
+    wms = _format_wms_url(this_layer["remote_url"], tile_bbox, width, height, req_proj)
     if this_layer.get("cached", True) and not cache.needs_fetch():
         return cache.open_image()
     locked = False
