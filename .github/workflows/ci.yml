@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - "ai/**"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  package-smoke:
+    name: Package smoke (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+        python-version:
+          - "3.11"
+          - "3.13"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build tools
+        run: python -m pip install --upgrade pip build
+
+      - name: Install package
+        run: python -m pip install -e .
+
+      - name: Compile sources
+        run: python -m compileall -q setup.py index.py tools twms
+
+      - name: Import WSGI application
+        run: |
+          python - <<'PY'
+          import importlib.metadata
+          import twms
+          import twms.daemon
+
+          assert twms.__version__ == "0.07z"
+          assert importlib.metadata.version("twms") == "0.7+z"
+          print(type(twms.daemon.application).__name__)
+          PY
+
+      - name: Build source and wheel distributions
+        run: python -m build

@@ -12,6 +12,13 @@ so GIS applications that support WMS protocol can access
 this tile set. Also, twms can act as a proxy and perform
 WMS requests to external services and serve the tile cache
 
+## Credits
+
+twms was originally written by Darafei Praliaskouski (Komzpa).
+Andrew Shadura maintains Debian packaging and wrote the Debian manpage.
+Eugene Dvoretsky (Radioxoma) contributed modernization work around
+packaging, serving, caching, and tile protocols.
+
 TODO
 ====
 
