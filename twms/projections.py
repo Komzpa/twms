@@ -15,13 +15,21 @@ except ImportError:
             def __init__(self, pstring):
                 self.pstring = pstring
 
-        def transform(self, pr1, pr2, c1, c2):
+        @staticmethod
+        def transform(pr1, pr2, c1, c2):
             if pr1.pstring == pr2.pstring:
                 return c1, c2
             else:
                 raise NotImplementedError(
-                    "Pyproj is not installed - can't convert between projectios. Install pyproj please."
+                    "Pyproj is not installed - can't convert between projections. Install twms[proj] please."
                 )
+
+
+def _pyproj_transformer(pr1, pr2):
+    if hasattr(pyproj, "Transformer"):
+        transformer = pyproj.Transformer.from_proj(pr1, pr2, always_xy=True)
+        return lambda _pr1, _pr2, c1, c2: transformer.transform(c1, c2)
+    return pyproj.transform
 
 
 projs = {
@@ -94,20 +102,28 @@ projs = {
         "bounds": (-180.0, -90.0, 180.0, 90.0),
     },
 }
-proj_alias = {"EPSG:900913": "EPSG:3857", "EPSG:3785": "EPSG:3857"}
+proj_alias = {
+    "CRS:84": "EPSG:4326",
+    "EPSG:900913": "EPSG:3857",
+    "EPSG:3785": "EPSG:3857",
+}
 
 
 def _c4326t3857(t1, t2, lon, lat):
     """
     Pure python 4326 -> 3857 transform. About 8x faster than pyproj.
     """
+    maxbounds = 6378137 * math.pi
+    xtile = maxbounds / 180 * lon
     lat_rad = math.radians(lat)
-    xtile = lon * 111319.49079327358
-    ytile = (
-        math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad)))
-        / math.pi
-        * 20037508.342789244
-    )
+    if abs(lat) <= 85.0511287798:
+        ytile = (
+            math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad)))
+            / math.pi
+            * maxbounds
+        )
+    else:
+        ytile = math.copysign(maxbounds, lat)
     return (xtile, ytile)
 
 
@@ -269,9 +285,10 @@ def transform(line, srs1, srs2):
     if (srs1, srs2) in pure_python_transformers:
         func = pure_python_transformers[(srs1, srs2)]
         # print("pure")
+        uses_pyproj = False
     else:
-
-        func = pyproj.transform
+        func = None
+        uses_pyproj = True
     line = list(line)
     serial = False
     if (not isinstance(line[0], tuple)) and (not isinstance(line[0], list)):
@@ -285,6 +302,8 @@ def transform(line, srs1, srs2):
     ans = []
     pr1 = projs[srs1]["proj"]
     pr2 = projs[srs2]["proj"]
+    if uses_pyproj:
+        func = _pyproj_transformer(pr1, pr2)
     for point in line:
         p = func(pr1, pr2, point[0], point[1])
         if serial:

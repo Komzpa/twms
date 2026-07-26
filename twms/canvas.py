@@ -15,9 +15,10 @@
 import datetime
 import sys
 import threading
-import urllib
+from urllib.request import urlopen
 from io import BytesIO
 
+import config
 import projections
 from PIL import Image, ImageFilter
 
@@ -35,12 +36,14 @@ class WmsCanvas:
         tile_size=None,
         mode="RGBA",
         tile_mode="WMS",
+        timeout="default",
     ):
         self.wms_url = wms_url
         self.zoom = zoom
         self.proj = proj
         self.mode = mode
         self.tile_mode = tile_mode
+        self.timeout = timeout
         self.tile_height = 256
         self.tile_width = 256
 
@@ -105,7 +108,7 @@ class WmsCanvas:
                 remote = self.ConstructTileUrl(x, y)
                 debug(remote)
                 ttz = datetime.datetime.now()
-                contents = urllib.urlopen(remote).read()
+                contents = urlopen(remote, timeout=self.UpstreamTimeout()).read()
                 debug("Download took %s" % str(datetime.datetime.now() - ttz))
                 im = Image.open(BytesIO(contents))
                 if im.mode != self.mode:
@@ -117,6 +120,15 @@ class WmsCanvas:
             self.tiles[(x, y)]["im"] = im
             self.tiles[(x, y)]["pix"] = im.load()
             self.tiles[(x, y)]["status"] = "RD"
+
+    def UpstreamTimeout(self):
+        if self.timeout != "default":
+            return self.timeout
+        return getattr(
+            config,
+            "upstream_timeout",
+            min(getattr(config, "deadline", 30), 30),
+        )
 
     def PreparePixel(self, x, y):
         tile_x = int(x / self.tile_height)
@@ -133,7 +145,7 @@ class WmsCanvas:
                     group=None,
                     target=self.FetchTile,
                     name=None,
-                    args=(self, tile_x, tile_y),
+                    args=(tile_x, tile_y),
                     kwargs={},
                 )
                 self.tiles[(tile_x, tile_y)]["thread"].start()

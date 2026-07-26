@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=TWMS
+GenericName=Tiny WMS/TMS server
+Comment=Start the tiny WMS/TMS tile proxy
+Categories=Geoscience;Geography;Network;
+Exec=twms
+Terminal=true
+StartupNotify=false
+Icon=utilities-terminal

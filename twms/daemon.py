@@ -37,7 +37,7 @@ def handler(data):
 
 
 urls = (
-    "/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)", "tilehandler",
+    r"/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)", "tilehandler",
     "/(.*)", "mainhandler",
 )
 

@@ -9,6 +9,20 @@ import projections
 from config import *
 
 
+def _layer_bounds(layer):
+    return layer.get(
+        "data_bounding_box",
+        layer.get("bounds", projections.projs[layer["proj"]]["bounds"]),
+    )
+
+
+def _layer_extension(layer):
+    return layer.get(
+        "ext",
+        layer.get("mimetype", "image/jpeg").lower().replace("image/", ""),
+    ).lower().replace("jpeg", "jpg")
+
+
 def html(ref):
     """
     Gives overall information about twms server and its layers in HTML format.
@@ -20,9 +34,7 @@ def html(ref):
     resp += wms_name
     resp += "</h2><table>"
     for i in layers:
-        bbox = layers[i].get(
-            "data_bounding_box", projections.projs[layers[i]["proj"]]["bounds"]
-        )
+        bbox = _layer_bounds(layers[i])
         resp += '<tr><td><img src="'
         resp += (
             ref
@@ -31,7 +43,14 @@ def html(ref):
             + "&amp;bbox=%s,%s,%s,%s" % bbox
             + '&amp;width=200&amp;format=image/png" width="200" /></td><td><h3>'
         )
-        resp += layers[i]["name"]
+        if "provider_url" in layers[i]:
+            resp += '<a referrerpolicy="no-referrer" href="'
+            resp += layers[i]["provider_url"]
+            resp += '">'
+            resp += layers[i]["name"]
+            resp += "</a>"
+        else:
+            resp += layers[i]["name"]
         resp += (
             "</h3><b>Bounding box:</b> "
             + str(bbox)
@@ -47,7 +66,7 @@ def html(ref):
             + ""
             + i
             + "/!/!/!."
-            + layers[i].get("ext", "jpg")
+            + _layer_extension(layers[i])
             + "<br />"
         )
         resp += "</td></tr>"

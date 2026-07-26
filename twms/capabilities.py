@@ -5,12 +5,140 @@
 # the extent permitted by applicable law. You can redistribute it
 # and/or modify it under the terms specified in COPYING.
 
+import xml.etree.ElementTree as ET
+
 import config
 import projections
 
 
+WMS = "http://www.opengis.net/wms"
+XLINK = "http://www.w3.org/1999/xlink"
+
+
+def _wms130_bbox(layer):
+    bbox = layer.get("bbox", config.default_bbox)
+    proj = layer.get("proj", "EPSG:3857")
+    if projections.proj_alias.get(proj, proj) == "EPSG:4326":
+        return "CRS:84", bbox
+    return proj, projections.from4326(bbox, proj)
+
+
+def _legacy_srs_ids():
+    return sorted(
+        proj
+        for proj in projections.projs.keys() | projections.proj_alias.keys()
+        if not proj.startswith("CRS:")
+    )
+
+
+def _wms130(ref):
+    content_type = "text/xml"
+
+    ET.register_namespace("", WMS)
+    ET.register_namespace("xlink", XLINK)
+
+    root = ET.Element(
+        "{%s}WMS_Capabilities" % WMS,
+        attrib={"version": "1.3.0"},
+    )
+    service = ET.SubElement(root, "Service")
+    ET.SubElement(service, "Name").text = "WMS"
+    ET.SubElement(service, "Title").text = config.wms_name
+    ET.SubElement(
+        service,
+        "OnlineResource",
+        attrib={
+            "{%s}type" % XLINK: "simple",
+            "{%s}href" % XLINK: ref,
+        },
+    )
+    ET.SubElement(service, "Fees").text = "none"
+    ET.SubElement(service, "AccessConstraints").text = "none"
+
+    capability = ET.SubElement(root, "Capability")
+    request = ET.SubElement(capability, "Request")
+    get_capabilities = ET.SubElement(request, "GetCapabilities")
+    ET.SubElement(get_capabilities, "Format").text = "text/xml"
+    ET.SubElement(
+        ET.SubElement(
+            ET.SubElement(ET.SubElement(get_capabilities, "DCPType"), "HTTP"),
+            "Get",
+        ),
+        "OnlineResource",
+        attrib={
+            "{%s}type" % XLINK: "simple",
+            "{%s}href" % XLINK: ref,
+        },
+    )
+
+    get_map = ET.SubElement(request, "GetMap")
+    for image_format in (
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/bmp",
+        "image/webp",
+    ):
+        ET.SubElement(get_map, "Format").text = image_format
+    ET.SubElement(
+        ET.SubElement(ET.SubElement(ET.SubElement(get_map, "DCPType"), "HTTP"), "Get"),
+        "OnlineResource",
+        attrib={
+            "{%s}type" % XLINK: "simple",
+            "{%s}href" % XLINK: ref,
+        },
+    )
+
+    exceptions = ET.SubElement(capability, "Exception")
+    ET.SubElement(exceptions, "Format").text = "XML"
+
+    parent = ET.SubElement(capability, "Layer")
+    ET.SubElement(parent, "Title").text = config.wms_name
+    ET.SubElement(parent, "CRS").text = "CRS:84"
+    west, south, east, north = config.default_bbox
+    geo_bbox = ET.SubElement(parent, "EX_GeographicBoundingBox")
+    ET.SubElement(geo_bbox, "westBoundLongitude").text = str(west)
+    ET.SubElement(geo_bbox, "eastBoundLongitude").text = str(east)
+    ET.SubElement(geo_bbox, "southBoundLatitude").text = str(south)
+    ET.SubElement(geo_bbox, "northBoundLatitude").text = str(north)
+
+    for layer_id in config.layers.keys():
+        layer_config = config.layers[layer_id]
+        layer = ET.SubElement(parent, "Layer", attrib={"queryable": "0", "opaque": "1"})
+        ET.SubElement(layer, "Name").text = layer_id
+        ET.SubElement(layer, "Title").text = layer_config["name"]
+        ET.SubElement(layer, "CRS").text = "CRS:84"
+        bbox = layer_config.get("bbox", config.default_bbox)
+        west, south, east, north = bbox
+        geo_bbox = ET.SubElement(layer, "EX_GeographicBoundingBox")
+        ET.SubElement(geo_bbox, "westBoundLongitude").text = str(west)
+        ET.SubElement(geo_bbox, "eastBoundLongitude").text = str(east)
+        ET.SubElement(geo_bbox, "southBoundLatitude").text = str(south)
+        ET.SubElement(geo_bbox, "northBoundLatitude").text = str(north)
+
+        bbox_crs, native_bbox = _wms130_bbox(layer_config)
+        ET.SubElement(layer, "CRS").text = bbox_crs
+        ET.SubElement(
+            layer,
+            "BoundingBox",
+            attrib={
+                "CRS": bbox_crs,
+                "minx": str(native_bbox[0]),
+                "miny": str(native_bbox[1]),
+                "maxx": str(native_bbox[2]),
+                "maxy": str(native_bbox[3]),
+            },
+        )
+
+    ET.indent(root)
+    return content_type, ET.tostring(root, encoding="unicode", xml_declaration=True)
+
+
 def get(version, ref):
     content_type = "text/xml"
+
+    if version == "1.3.0":
+        return _wms130(ref)
 
     if version == "1.0.0":
         req = (
@@ -103,9 +231,7 @@ def get(version, ref):
             + """</Title>
                         <Abstract/>"""
         )
-        pset = set(projections.projs.keys())
-        pset = pset.union(set(projections.proj_alias.keys()))
-        for proj in pset:
+        for proj in _legacy_srs_ids():
             req += "<SRS>%s</SRS>" % proj
         req += """<LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>
                         <BoundingBox SRS="EPSG:4326" minx="-184" miny="85.0511287798" maxx="180" maxy="85.0511287798"/>
@@ -192,6 +318,7 @@ def get(version, ref):
                                 <Format>image/jpeg</Format>
                                 <Format>image/gif</Format>
                                 <Format>image/bmp</Format>
+                                <Format>image/webp</Format>
                                 <DCPType>
                                         <HTTP>
                                                 <Get>
@@ -216,9 +343,7 @@ def get(version, ref):
                 <Layer>
                         <Title>World Map</Title>"""
         )
-        pset = set(projections.projs.keys())
-        pset = pset.union(set(projections.proj_alias.keys()))
-        for proj in pset:
+        for proj in _legacy_srs_ids():
             req += "<SRS>%s</SRS>" % proj
         req += """
                         <LatLonBoundingBox minx="-180" miny="-85.0511287798" maxx="180" maxy="85.0511287798"/>

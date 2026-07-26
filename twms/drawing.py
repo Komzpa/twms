@@ -104,7 +104,7 @@ def render_vector(
 
     if renderer == "cairo" and HAVE_CAIRO:
         "rendering as cairo"
-        imgd = img.tostring()
+        imgd = img.tobytes()
         a = array.array("B", imgd)
         surface = cairo.ImageSurface.create_for_data(
             a, cairo.FORMAT_ARGB32, W, H, W * 4

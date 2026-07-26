@@ -7,48 +7,36 @@
 # and/or modify it under the terms specified in COPYING.
 
 import datetime
-import imp
 import math
 import os
 import sys
 import time
 import urllib
+from collections import OrderedDict
 from io import BytesIO
 
-# import config
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
-config_path = "/etc/twms/twms.conf"
-if os.path.exists(config_path):
-    try:
-        config = imp.load_source("twms.config", config_path)
-    except:
-        config = imp.load_source("config", config_path)
-else:
-    try:
-        config_path = os.path.join(os.path.dirname(__file__), "twms.conf")
-        config = imp.load_source("twms.config", config_path)
-    except:
-        config_path = os.path.join(os.path.realpath(sys.path[0]), "twms.conf")
-        config = imp.load_source(
-            "config", os.path.join(os.path.realpath(sys.path[0]), "twms.conf")
-        )
-    sys.stderr.write(
-        "Configuration file not found, using defaults from %s\n" % config_path
-    )
-    sys.stderr.flush()
+from twms.config_loader import load_default_config
+
+
+config = load_default_config()
 
 import bbox
 import capabilities
 import correctify
 import drawing
 import fetchers
+import josm
 import overview
 import projections
+import tilejson
+import wmts
 from bbox import expand_to_point, zoom_for_bbox
 from gpxparse import GPXParser
 from PIL import Image, ImageColor, ImageOps
 from reproject import reproject
+from twms.image_compat import resampling_lanczos
 
 
 try:
@@ -62,8 +50,7 @@ except ImportError:
 OK = 200
 ERROR = 500
 
-cached_objs = {}  # a dict. (layer, z, x, y): PIL image
-cached_hist_list = []
+cached_objs = OrderedDict()  # (layer, z, x, y): PIL image, least-recent first
 
 formats = {
     "image/gif": "GIF",
@@ -71,9 +58,56 @@ formats = {
     "image/jpg": "JPEG",
     "image/png": "PNG",
     "image/bmp": "BMP",
+    "image/webp": "WEBP",
 }
 
 mimetypes = dict(zip(formats.values(), formats.keys()))
+
+
+def _ram_cache_key(layer, z, x, y):
+    return (layer["prefix"], z, x, y)
+
+
+def _ram_cache_get(key):
+    if key not in cached_objs:
+        return None
+    cached_objs.move_to_end(key)
+    return cached_objs[key]
+
+
+def _ram_cache_put(key, image):
+    limit = int(getattr(config, "max_ram_cached_tiles", 1024))
+    if limit <= 0:
+        return
+    cached_objs[key] = image
+    cached_objs.move_to_end(key)
+    while len(cached_objs) > limit:
+        cached_objs.popitem(last=False)
+
+
+def _response_cache_entry(
+    response_cache, srs, layers, filt, width, height, force, image_format
+):
+    key_parts = (srs, tuple(layers), filt, width, height, force)
+    for format_key in (image_format, mimetypes.get(image_format)):
+        key = key_parts + (format_key,)
+        if key in response_cache:
+            return response_cache[key]
+    return None
+
+
+def _layer_bounds(layer):
+    return layer.get(
+        "data_bounding_box",
+        layer.get("bounds", layer.get("bbox", config.default_bbox)),
+    )
+
+
+def _layer_extension(layer):
+    return layer.get(
+        "ext",
+        layer.get("mimetype", "image/jpeg").lower().replace("image/", ""),
+    ).lower().replace("jpeg", "jpg")
 
 
 def twms_main(data):
@@ -82,6 +116,7 @@ def twms_main(data):
     data - dictionary of params. 
     returns (error_code, content_type, resp)
     """
+    data = dict((key.lower(), data[key]) for key in data)
     # import the filter here due to a circular dependency
     # TODO: break the loop
     import filter
@@ -90,13 +125,17 @@ def twms_main(data):
 
     content_type = "text/html"
     resp = ""
-    srs = data.get("srs", "EPSG:4326")
+    srs = data.get("crs", data.get("srs", "EPSG:4326"))
     gpx = data.get("gpx", "").split(",")
     if gpx == [""]:
         gpx = []
     wkt = data.get("wkt", "")
     trackblend = float(data.get("trackblend", "0.5"))
-    color = data.get("color", data.get("colour", "")).split(",")
+    colors = [
+        value
+        for value in data.get("color", data.get("colour", "")).split(",")
+        if value
+    ]
     track = False
     tracks = []
     if len(gpx) == 0:
@@ -121,23 +160,50 @@ def twms_main(data):
             tracks.append(track)
 
     req_type = data.get("request", "GetMap")
+    req_type_lower = req_type.lower()
     version = data.get("version", "1.1.1")
     ref = data.get("ref", config.service_url)
-    if req_type == "GetCapabilities":
+    if data.get("service", "").lower() == "wmts" and req_type_lower == "getcapabilities":
+        return (OK, "text/xml", wmts.capabilities(config, ref))
+    if req_type_lower == "getwmtscapabilities":
+        return (OK, "text/xml", wmts.capabilities(config, ref))
+    if data.get("service", "").lower() == "wmts" and req_type_lower == "gettile":
+        if "layers" not in data and "layer" in data:
+            data["layers"] = data["layer"]
+        if "z" not in data and "tilematrix" in data:
+            data["z"] = data["tilematrix"]
+        if "x" not in data and "tilecol" in data:
+            data["x"] = data["tilecol"]
+        if "y" not in data and "tilerow" in data:
+            data["y"] = data["tilerow"]
+    if req_type_lower == "getcapabilities":
         content_type, resp = capabilities.get(version, ref)
         return (OK, content_type, resp)
+    if req_type_lower in ("gettilejson", "tilejson"):
+        try:
+            resp = tilejson.dumps(
+                config,
+                data.get("layers", ""),
+                ref,
+                format_name=data.get("format", ""),
+            )
+            return (OK, "application/json", resp)
+        except KeyError as exc:
+            return (400, "text/plain", str(exc))
+    if req_type_lower in ("getjosmimagery", "josmimagery", "getjosmmaps"):
+        return (OK, "text/xml", josm.xml(config, ref))
 
     layer = data.get("layers", config.default_layers).split(",")
     if ("layers" in data) and not layer[0]:
         layer = ["transparent"]
 
-    if req_type == "GetCorrections":
+    if req_type_lower == "getcorrections":
         points = data.get("points", data.get("POINTS", "")).split("=")
         resp = ""
         points = [a.split(",") for a in points]
         points = [(float(a[0]), float(a[1])) for a in points]
 
-        req.content_type = "text/plain"
+        content_type = "text/plain"
         for lay in layer:
             for point in points:
                 resp += "%s,%s;" % tuple(correctify.rectify(config.layers[lay], point))
@@ -169,29 +235,28 @@ def twms_main(data):
     width = 0
     height = 0
     resp_cache_path, resp_ext = "", ""
-    if req_type == "GetTile":
+    if req_type_lower == "gettile":
         width = 256
         height = 256
         height = int(data.get("height", height))
         width = int(data.get("width", width))
-        srs = data.get("srs", "EPSG:3857")
+        srs = data.get("crs", data.get("srs", "EPSG:3857"))
         x = int(data.get("x", 0))
         y = int(data.get("y", 0))
         z = int(data.get("z", 1)) + 1
         if "cache_tile_responses" in dir(config) and not wkt and (len(gpx) == 0):
-            if (
+            response_cache = _response_cache_entry(
+                config.cache_tile_responses,
                 srs,
-                tuple(layer),
+                layer,
                 filt,
                 width,
                 height,
                 force,
                 format,
-            ) in config.cache_tile_responses:
-
-                resp_cache_path, resp_ext = config.cache_tile_responses[
-                    (srs, tuple(layer), filt, width, height, force, format)
-                ]
+            )
+            if response_cache:
+                resp_cache_path, resp_ext = response_cache
                 resp_cache_path = resp_cache_path + "/%s/%s/%s.%s" % (
                     z - 1,
                     x,
@@ -199,13 +264,14 @@ def twms_main(data):
                     resp_ext,
                 )
                 if os.path.exists(resp_cache_path):
-                    return (OK, content_type, open(resp_cache_path, "r").read())
+                    with open(resp_cache_path, "rb") as cached_response:
+                        return (OK, content_type, cached_response.read())
         if len(layer) == 1:
             if layer[0] in config.layers:
                 if (
                     config.layers[layer[0]]["proj"] == srs
-                    and width is 256
-                    and height is 256
+                    and width == 256
+                    and height == 256
                     and not filt
                     and not force
                     and not correctify.has_corrections(config.layers[layer[0]])
@@ -213,14 +279,14 @@ def twms_main(data):
                     local = (
                         config.tiles_cache
                         + config.layers[layer[0]]["prefix"]
-                        + "/z%s/%s/x%s/%s/y%s." % (z, x / 1024, x, y / 1024, y)
+                        + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
                     )
-                    ext = config.layers[layer]["ext"]
+                    ext = _layer_extension(config.layers[layer[0]])
                     adds = ["", "ups."]
                     for add in adds:
                         if os.path.exists(local + add + ext):
-                            tile_file = open(local + add + ext, "r")
-                            resp = tile_file.read()
+                            with open(local + add + ext, "rb") as tile_file:
+                                resp = tile_file.read()
                             return (OK, content_type, resp)
         req_bbox = projections.from4326(projections.bbox_by_tile(z, x, y, srs), srs)
 
@@ -271,29 +337,29 @@ def twms_main(data):
 
         if "empty_color" in config.layers[ll]:
             ec = ImageColor.getcolor(config.layers[ll]["empty_color"], "RGBA")
-            sec = set(ec)
+            sec = {ec}
             if "empty_color_delta" in config.layers[ll]:
                 delta = config.layers[ll]["empty_color_delta"]
-                for tr in range(-delta, delta):
-                    for tg in range(-delta, delta):
-                        for tb in range(-delta, delta):
+                for tr in range(-delta, delta + 1):
+                    for tg in range(-delta, delta + 1):
+                        for tb in range(-delta, delta + 1):
                             if (
                                 (ec[0] + tr) >= 0
                                 and (ec[0] + tr) < 256
-                                and (ec[1] + tr) >= 0
-                                and (ec[1] + tr) < 256
-                                and (ec[2] + tr) >= 0
-                                and (ec[2] + tr) < 256
+                                and (ec[1] + tg) >= 0
+                                and (ec[1] + tg) < 256
+                                and (ec[2] + tb) >= 0
+                                and (ec[2] + tb) < 256
                             ):
                                 sec.add((ec[0] + tr, ec[1] + tg, ec[2] + tb, ec[3]))
             i2l = im2.load()
-            for x in range(0, im2.size[0]):
-                for y in range(0, im2.size[1]):
-                    t = i2l[x, y]
+            for px in range(0, im2.size[0]):
+                for py in range(0, im2.size[1]):
+                    t = i2l[px, py]
                     if t in sec:
-                        i2l[x, y] = (t[0], t[1], t[2], 0)
+                        i2l[px, py] = (t[0], t[1], t[2], 0)
         if not im2.size == result_img.size:
-            im2 = im2.resize(result_img.size, Image.ANTIALIAS)
+            im2 = im2.resize(result_img.size, resampling_lanczos(Image))
         im2 = Image.composite(im2, result_img, im2.split()[3])  # imgs/(imgs+1.))
 
         if "noblend" in force:
@@ -313,15 +379,15 @@ def twms_main(data):
             result_img,
             req_bbox,
             srs,
-            color if len(color) > 0 else None,
+            colors[0] if colors else None,
             trackblend,
         )
     if len(gpx) > 0:
         last_color = None
-        c = iter(color)
+        c = iter(colors)
         for track in tracks:
             try:
-                last_color = c.next()
+                last_color = next(c)
             except StopIteration:
                 pass
             result_img = drawing.gpx(
@@ -372,9 +438,8 @@ def twms_main(data):
         except OSError:
             pass
         try:
-            a = open(resp_cache_path, "w")
-            a.write(resp)
-            a.close()
+            with open(resp_cache_path, "wb") as cached_response:
+                cached_response.write(resp)
         except (OSError, IOError):
             print(
                 "error saving response answer to file %s." % (resp_cache_path),
@@ -397,21 +462,22 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
         return None
     if not bbox.bbox_is_in(
         projections.bbox_by_tile(z, x, y, layer["proj"]),
-        layer.get("data_bounding_box", config.default_bbox),
+        _layer_bounds(layer),
         fully=False,
     ):
         return None
-    global cached_objs, cached_hist_list
+    global cached_objs
     if "prefix" in layer:
-        if (layer["prefix"], z, x, y) in cached_objs:
-            return cached_objs[(layer["prefix"], z, x, y)]
+        cached = _ram_cache_get(_ram_cache_key(layer, z, x, y))
+        if cached is not None:
+            return cached
     if layer.get("cached", True):
         local = (
             config.tiles_cache
             + layer["prefix"]
-            + "/z%s/%s/x%s/%s/y%s." % (z, x / 1024, x, y / 1024, y)
+            + "/z%s/%s/x%s/%s/y%s." % (z, x // 1024, x, y // 1024, y)
         )
-        ext = layer["ext"]
+        ext = _layer_extension(layer)
         if "cache_ttl" in layer:
             for ex in [ext, "dsc." + ext, "ups." + ext, "tne"]:
                 f = local + ex
@@ -468,7 +534,7 @@ def tile_image(layer, z, x, y, start_time, again=False, trybetter=True, real=Fal
                                 im.paste(im2, (256, 0))
                                 im.paste(im3, (0, 256))
                                 im.paste(im4, (256, 256))
-                                im = im.resize((256, 256), Image.ANTIALIAS)
+                                im = im.resize((256, 256), resampling_lanczos(Image))
                                 if layer.get("cached", True):
                                     try:
                                         im.save(local + "ups." + ext)
@@ -581,16 +647,12 @@ def getimg(bbox, request_proj, size, layer, start_time, force):
             im1 = tile_image(layer, zoom, x, y, start_time, real=True)
             if im1:
                 if "prefix" in layer:
-                    if (layer["prefix"], zoom, x, y) not in cached_objs:
+                    cache_key = _ram_cache_key(layer, zoom, x, y)
+                    if cache_key not in cached_objs:
                         if im1.is_ok:
-                            cached_objs[(layer["prefix"], zoom, x, y)] = im1
-                            cached_hist_list.append((layer["prefix"], zoom, x, y))
+                            _ram_cache_put(cache_key, im1)
                             # print((layer["prefix"], zoom, x, y), cached_objs[(layer["prefix"], zoom, x, y)], file=sys.stderr)
                             # sys.stderr.flush()
-                    if len(cached_objs) >= config.max_ram_cached_tiles:
-                        del cached_objs[cached_hist_list.pop(0)]
-                        # print("Removed tile from cache", file=sys.stderr)
-                        # sys.stderr.flush()
             else:
                 ec = ImageColor.getcolor(
                     layer.get("empty_color", config.default_background), "RGBA"
@@ -629,6 +691,6 @@ def getimg(bbox, request_proj, size, layer, start_time, force):
         out = out.transform((W, H), Image.QUAD, quad, Image.BICUBIC)
     elif (W != out.size[0]) or (H != out.size[1]):
         "just resize"
-        out = out.resize((W, H), Image.ANTIALIAS)
+        out = out.resize((W, H), resampling_lanczos(Image))
     # out = reproject(out, bbox, layer["proj"], request_proj)
     return out
