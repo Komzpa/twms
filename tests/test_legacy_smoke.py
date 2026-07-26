@@ -1766,7 +1766,23 @@ class LegacySmokeTest(unittest.TestCase):
                 self.assertIn("application/vnd.ogc.wms_xml", response.headers["Content-Type"])
                 self.assertIn("<WMT_MS_Capabilities", body)
 
+            with urllib.request.urlopen(
+                base + "/wms?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.1.1"
+            ) as response:
+                body = response.read().decode("utf-8")
+                self.assertEqual(response.status, 200)
+                self.assertIn("application/vnd.ogc.wms_xml", response.headers["Content-Type"])
+                self.assertIn('xlink:href="' + base + '/wms?"', body)
+
             with urllib.request.urlopen(base + "/transparent/0/0/0.png") as response:
+                body = response.read()
+                self.assertEqual(response.status, 200)
+                self.assertIn("image/png", response.headers["Content-Type"])
+                with Image.open(BytesIO(body)) as image:
+                    self.assertEqual(image.size, (256, 256))
+                    self.assertEqual(image.mode, "RGBA")
+
+            with urllib.request.urlopen(base + "/wms/transparent/0/0/0.png") as response:
                 body = response.read()
                 self.assertEqual(response.status, 200)
                 self.assertIn("image/png", response.headers["Content-Type"])
@@ -1781,6 +1797,17 @@ class LegacySmokeTest(unittest.TestCase):
                 self.assertEqual(doc["tiles"], [base + "/osm/{z}/{x}/{y}.png"])
 
             with urllib.request.urlopen(base + "/josm/imagery.xml") as response:
+                root = ET.fromstring(response.read().decode("utf-8"))
+                namespaces = {"josm": "http://josm.openstreetmap.de/maps-1.0"}
+                osm = root.find("./josm:entry[josm:id='twms-osm']", namespaces)
+                self.assertEqual(response.status, 200)
+                self.assertIn("text/xml", response.headers["Content-Type"])
+                self.assertEqual(
+                    osm.find("josm:url", namespaces).text,
+                    base + "/osm/{zoom}/{x}/{y}.png",
+                )
+
+            with urllib.request.urlopen(base + "/josm/maps.xml") as response:
                 root = ET.fromstring(response.read().decode("utf-8"))
                 namespaces = {"josm": "http://josm.openstreetmap.de/maps-1.0"}
                 osm = root.find("./josm:entry[josm:id='twms-osm']", namespaces)

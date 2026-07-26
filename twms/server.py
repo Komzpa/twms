@@ -15,8 +15,11 @@ from twms import twms_main
 
 
 tile_route = re.compile(r"/(.*)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?(.*)")
+wms_tile_route = re.compile(
+    r"/wms/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?"
+)
 tilejson_route = re.compile(r"/tilejson/(.+)\.json")
-josm_imagery_routes = {"/josm/imagery.xml", "/maps.xml"}
+josm_imagery_routes = {"/josm/imagery.xml", "/josm/maps.xml", "/maps.xml"}
 wmts_capabilities_route = "/wmts/1.0.0/WMTSCapabilities.xml"
 wmts_tile_route = re.compile(
     r"/wmts/([^/]+)/([0-9]+)/([0-9]+)/([0-9]+)(\.[a-zA-Z]+)?"
@@ -29,6 +32,18 @@ def request_url(handler):
     if not host:
         host = "%s:%s" % handler.server.server_address[:2]
     return "%s://%s/" % (scheme, host)
+
+
+def _tile_data(match):
+    ext = match.group(5) or ".jpg"
+    return {
+        "request": "GetTile",
+        "layers": match.group(1),
+        "format": ext.strip(".").lower(),
+        "z": match.group(2),
+        "x": match.group(3),
+        "y": match.group(4),
+    }
 
 
 def dispatch(path, ref=None):
@@ -49,34 +64,24 @@ def dispatch(path, ref=None):
             "service": "WMTS",
         }
     else:
-        match = wmts_tile_route.fullmatch(parsed.path)
+        match = wms_tile_route.fullmatch(parsed.path)
         if match:
-            ext = match.group(5) or ".jpg"
-            data = {
-                "request": "GetTile",
-                "layers": match.group(1),
-                "format": ext.strip(".").lower(),
-                "z": match.group(2),
-                "x": match.group(3),
-                "y": match.group(4),
-            }
+            data = _tile_data(match)
         else:
-            match = tile_route.fullmatch(parsed.path)
+            match = wmts_tile_route.fullmatch(parsed.path)
             if match:
-                ext = match.group(5) or ".jpg"
-                data = {
-                    "request": "GetTile",
-                    "layers": match.group(1),
-                    "format": ext.strip(".").lower(),
-                    "z": match.group(2),
-                    "x": match.group(3),
-                    "y": match.group(4),
-                }
+                data = _tile_data(match)
             else:
-                if not parsed.query and parsed.path not in ("", "/"):
-                    return 404, "text/plain", "Not Found\n"
-                data = dict(urllib.parse.parse_qsl(parsed.query))
-                data = dict((key.lower(), data[key]) for key in data)
+                match = tile_route.fullmatch(parsed.path)
+                if match:
+                    data = _tile_data(match)
+                else:
+                    if not parsed.query and parsed.path not in ("", "/", "/wms"):
+                        return 404, "text/plain", "Not Found\n"
+                    data = dict(urllib.parse.parse_qsl(parsed.query))
+                    data = dict((key.lower(), data[key]) for key in data)
+                    if ref and parsed.path == "/wms":
+                        ref = urllib.parse.urljoin(ref, "wms")
 
     if ref and "ref" not in data:
         data["ref"] = ref
