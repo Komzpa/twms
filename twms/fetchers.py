@@ -25,6 +25,14 @@ fetching_now = {}
 thread_responses = {}
 zhash_lock = {}
 
+_EXTENSION_FORMATS = {
+    "gif": "GIF",
+    "jpg": "JPEG",
+    "jpeg": "JPEG",
+    "png": "PNG",
+    "webp": "WEBP",
+}
+
 
 def _cache_stem(z, x, y, this_layer):
     return (
@@ -195,7 +203,10 @@ def WMS(z, x, y, this_layer):
             return cache.wait_for_peer()
     try:
         try:
-            im = Image.open(BytesIO(urlopen(wms).read()))
+            contents = urlopen(wms).read()
+            im = _open_downloaded_image(contents)
+            if im is None:
+                raise OSError
         except OSError:
             stale = cache.open_image(include_stale=True)
             if stale is not None:
@@ -243,7 +254,9 @@ def Tile(z, x, y, this_layer):
     try:
         try:
             contents = urlopen(remote).read()
-            im = Image.open(BytesIO(contents))
+            im = _open_downloaded_image(contents)
+            if im is None:
+                raise OSError
         except OSError:
             stale = cache.open_image(include_stale=True)
             if stale is not None:
@@ -253,11 +266,44 @@ def Tile(z, x, y, this_layer):
             cache.mark_tne()
             return False
         if this_layer.get("cached", True):
-            cache.write_bytes(contents)
+            cache.write_bytes(_cache_image_bytes(contents, im, this_layer["ext"]))
         return im
     finally:
         if locked:
             cache.release()
+
+
+def _open_downloaded_image(contents):
+    if not contents:
+        return None
+    image = Image.open(BytesIO(contents))
+    image.load()
+    return image
+
+
+def _cache_image_bytes(contents, image, extension):
+    target_format = _EXTENSION_FORMATS.get(extension.lower())
+    if target_format is None or image.format == target_format:
+        return contents
+
+    image_content = BytesIO()
+    if target_format == "JPEG":
+        image = image.convert("RGB")
+        image.save(
+            image_content,
+            target_format,
+            quality=config.output_quality,
+            progressive=config.output_progressive,
+        )
+    elif target_format == "PNG":
+        image.save(
+            image_content,
+            target_format,
+            optimize=config.output_optimize,
+        )
+    else:
+        image.save(image_content, target_format)
+    return image_content.getvalue()
 
 
 def _is_dead_tile(contents, dead_tile):

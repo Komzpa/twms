@@ -30,7 +30,10 @@ import twms.twms
 class LegacySmokeTest(unittest.TestCase):
     def image_bytes(self, color, image_format="PNG"):
         buffer = BytesIO()
-        Image.new("RGBA", (256, 256), color).save(buffer, image_format)
+        image = Image.new("RGBA", (256, 256), color)
+        if image_format == "JPEG":
+            image = image.convert("RGB")
+        image.save(buffer, image_format)
         return buffer.getvalue()
 
     def cache_path(self, cache_root, layer, z, x, y):
@@ -446,6 +449,49 @@ class LegacySmokeTest(unittest.TestCase):
                 self.assertFalse(image)
                 self.assertFalse(os.path.exists(path))
                 self.assertTrue(os.path.exists(tne_path))
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_invalid_downloaded_tile_is_not_cached(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "invalid",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+            }
+            try:
+                path = self.cache_path(cache_root, layer, 2, 3, 4)
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = b"not an image"
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                self.assertFalse(image)
+                self.assertFalse(os.path.exists(path))
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_tile_cache_converts_download_to_layer_extension(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "format",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.jpg",
+            }
+            try:
+                path = self.cache_path(cache_root, layer, 2, 3, 4)
+                with mock.patch("twms.fetchers.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = self.image_bytes(
+                        (20, 30, 40), image_format="JPEG"
+                    )
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                self.assertEqual(image.format, "JPEG")
+                with Image.open(path) as cached_image:
+                    self.assertEqual(cached_image.format, "PNG")
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 
