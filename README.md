@@ -74,7 +74,8 @@ Layer dictionaries usually define:
 - `min_zoom` / `max_zoom`: optional zoom limits
 - `cache_ttl`: optional fresh-cache lifetime in seconds
 - `dead_tile`: optional dead-tile marker, either a legacy file path or a
-  `{ "size": ..., "md5": {...} }` dictionary
+  `{ "size": ..., "md5": {...} }` dictionary; dictionaries may also set
+  `http_status` for an upstream status code that should be cached as `.tne`
 
 ## Client URLs
 

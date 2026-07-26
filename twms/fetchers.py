@@ -13,6 +13,7 @@ import sys
 import threading
 import time
 from io import BytesIO
+from urllib.error import HTTPError
 from urllib.request import urlopen
 
 import config
@@ -257,6 +258,14 @@ def Tile(z, x, y, this_layer):
             im = _open_downloaded_image(contents)
             if im is None:
                 raise OSError
+        except HTTPError as error:
+            if _is_tne_http_error(error, this_layer):
+                cache.mark_tne()
+                return False
+            stale = cache.open_image(include_stale=True)
+            if stale is not None:
+                return stale
+            return False
         except OSError:
             stale = cache.open_image(include_stale=True)
             if stale is not None:
@@ -304,6 +313,21 @@ def _cache_image_bytes(contents, image, extension):
     else:
         image.save(image_content, target_format)
     return image_content.getvalue()
+
+
+def _is_tne_http_error(error, this_layer):
+    status = getattr(error, "status", error.code)
+    if status == 404:
+        return True
+
+    dead_tile = this_layer.get("dead_tile")
+    if not isinstance(dead_tile, dict) or "http_status" not in dead_tile:
+        return False
+
+    configured = dead_tile["http_status"]
+    if isinstance(configured, (list, tuple, set)):
+        return status in configured
+    return status == configured
 
 
 def _is_dead_tile(contents, dead_tile):

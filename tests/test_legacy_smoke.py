@@ -9,6 +9,7 @@ from io import BytesIO
 import tempfile
 import threading
 import unittest
+import urllib.error
 import urllib.request
 import warnings
 from http.server import ThreadingHTTPServer
@@ -492,6 +493,63 @@ class LegacySmokeTest(unittest.TestCase):
                 self.assertEqual(image.format, "JPEG")
                 with Image.open(path) as cached_image:
                     self.assertEqual(cached_image.format, "PNG")
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_http_404_tile_is_recorded_as_tne(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "http-tne",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+            }
+            try:
+                path = self.cache_path(cache_root, layer, 2, 3, 4)
+                tne_path = path[:-3] + "tne"
+                error = urllib.error.HTTPError(
+                    "http://example.test/2/3/4.png",
+                    404,
+                    "Not Found",
+                    hdrs={},
+                    fp=None,
+                )
+                with mock.patch("twms.fetchers.urlopen", side_effect=error):
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                self.assertFalse(image)
+                self.assertFalse(os.path.exists(path))
+                self.assertTrue(os.path.exists(tne_path))
+            finally:
+                twms.fetchers.config.tiles_cache = old_cache
+
+    def test_configured_http_status_tile_is_recorded_as_tne(self):
+        with tempfile.TemporaryDirectory() as cache_root:
+            old_cache = twms.fetchers.config.tiles_cache
+            twms.fetchers.config.tiles_cache = cache_root + os.sep
+            layer = {
+                "prefix": "http-tne",
+                "ext": "png",
+                "remote_url": "http://example.test/%s/%s/%s.png",
+                "dead_tile": {"http_status": 410},
+            }
+            try:
+                path = self.cache_path(cache_root, layer, 2, 3, 4)
+                tne_path = path[:-3] + "tne"
+                error = urllib.error.HTTPError(
+                    "http://example.test/2/3/4.png",
+                    410,
+                    "Gone",
+                    hdrs={},
+                    fp=None,
+                )
+                with mock.patch("twms.fetchers.urlopen", side_effect=error):
+                    image = twms.fetchers.Tile(2, 3, 4, layer)
+
+                self.assertFalse(image)
+                self.assertFalse(os.path.exists(path))
+                self.assertTrue(os.path.exists(tne_path))
             finally:
                 twms.fetchers.config.tiles_cache = old_cache
 
