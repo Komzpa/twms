@@ -2,12 +2,14 @@ import importlib
 import importlib.metadata
 import hashlib
 import json
+import math
 import os
 from io import BytesIO
 import tempfile
 import threading
 import unittest
 import urllib.request
+import warnings
 from http.server import ThreadingHTTPServer
 import xml.etree.ElementTree as ET
 from unittest import mock
@@ -17,6 +19,7 @@ from PIL import Image
 import twms
 import twms.daemon
 import twms.fetchers
+import twms.projections
 import twms.server
 import twms.twms
 
@@ -173,6 +176,42 @@ class LegacySmokeTest(unittest.TestCase):
         with Image.open(BytesIO(body)) as image:
             self.assertEqual(image.size, (256, 256))
             self.assertEqual(image.mode, "RGBA")
+
+    def test_webmercator_projection_clamps_poles(self):
+        maxbounds = 6378137 * math.pi
+
+        projected = twms.projections.from4326(
+            (-180.0, -90.0, 180.0, 90.0),
+            "EPSG:3857",
+        )
+
+        self.assertEqual(projected[0], -maxbounds)
+        self.assertEqual(projected[1], -maxbounds)
+        self.assertEqual(projected[2], maxbounds)
+        self.assertEqual(projected[3], maxbounds)
+
+    def test_optional_pyproj_projection_uses_modern_transformer(self):
+        if not hasattr(twms.projections.pyproj, "Transformer"):
+            self.skipTest("pyproj extra is not installed")
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            point = twms.projections.from4326((27.6, 53.2), "EPSG:32635")
+
+        self.assertTrue(540000 < point[0] < 541000)
+        self.assertTrue(5894000 < point[1] < 5895000)
+        self.assertFalse(
+            [warning for warning in caught if warning.category is FutureWarning],
+        )
+
+    def test_non_core_projection_reports_missing_pyproj_extra(self):
+        if hasattr(twms.projections.pyproj, "Transformer"):
+            self.skipTest("pyproj extra is installed")
+
+        with self.assertRaises(NotImplementedError) as raised:
+            twms.projections.from4326((27.6, 53.2), "EPSG:32635")
+
+        self.assertIn("twms[proj]", str(raised.exception))
 
     def test_tile_cache_uses_fresh_file_without_network(self):
         with tempfile.TemporaryDirectory() as cache_root:
