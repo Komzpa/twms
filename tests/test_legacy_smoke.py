@@ -152,6 +152,38 @@ class LegacySmokeTest(unittest.TestCase):
         self.assertIn("<table>", body)
         self.assertIn("Yandex Satellite", body)
 
+    def test_overview_accepts_bounds_alias_and_provider_link(self):
+        old_config_layers = twms.twms.config.layers
+        old_overview_layers = twms.twms.overview.layers
+        layers = {
+            "bounded": {
+                "name": "Bounded",
+                "prefix": "bounded",
+                "ext": "png",
+                "proj": "EPSG:3857",
+                "bounds": (1.0, 2.0, 3.0, 4.0),
+                "provider_url": "http://provider.example/",
+            }
+        }
+        twms.twms.config.layers = layers
+        twms.twms.overview.layers = layers
+        try:
+            status, content_type, body = twms.twms.twms_main(
+                {"ref": "http://example.test/"}
+            )
+
+            self.assertEqual(status, 200)
+            self.assertEqual(content_type, "text/html")
+            self.assertIn("bbox=1.0,2.0,3.0,4.0", body)
+            self.assertIn(
+                '<a referrerpolicy="no-referrer" href="http://provider.example/">'
+                "Bounded</a>",
+                body,
+            )
+        finally:
+            twms.twms.config.layers = old_config_layers
+            twms.twms.overview.layers = old_overview_layers
+
     def test_gettile_transparent_layer_smoke(self):
         status, content_type, body = twms.twms.twms_main(
             {
