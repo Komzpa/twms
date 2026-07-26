@@ -187,8 +187,8 @@ def twms_main(data):
             if layer[0] in config.layers:
                 if (
                     config.layers[layer[0]]["proj"] == srs
-                    and width is 256
-                    and height is 256
+                    and width == 256
+                    and height == 256
                     and not filt
                     and not force
                     and not correctify.has_corrections(config.layers[layer[0]])
