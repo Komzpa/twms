@@ -62,6 +62,7 @@ projs: dict[str, dict[str, str | twms.bbox.Bbox]] = {
 proj_alias = {
     EPSG("EPSG:900913"): EPSG("EPSG:3857"),
     EPSG("EPSG:3785"): EPSG("EPSG:3857"),
+    EPSG("CRS:84"): EPSG("EPSG:4326"),
 }
 
 

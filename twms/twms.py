@@ -55,14 +55,23 @@ class TWMSMain:
         wkt = data.get("wkt", "")
         # color = data.get("color", data.get("colour", "")).split(",")
 
-        req_type = data.get("request", "GetMap")
+        req_type = data.get("request", "GetMap").casefold()
 
-        if req_type == "GetCapabilities":
-            # version = data.get("version", "1.1.1")
-            # ref = data.get("ref", twms.config.service_url)
-            # resp = twms.api.maps_xml_wms(version, ref + "wms")[1]
-            resp = twms.api.maps_xml_wms111()
-            return HTTPStatus.OK, "text/xml", resp
+        if req_type in ("gettilejson", "tilejson"):
+            try:
+                return (
+                    HTTPStatus.OK,
+                    "application/json",
+                    twms.api.tilejson_json(data.get("layers", "")),
+                )
+            except KeyError as error:
+                return HTTPStatus.BAD_REQUEST, "text/plain", str(error)
+
+        if req_type == "getcapabilities":
+            version = data.get("version", "1.1.1")
+            if version == "1.3.0":
+                return HTTPStatus.OK, "text/xml", twms.api.maps_xml_wms130()
+            return HTTPStatus.OK, "text/xml", twms.api.maps_xml_wms111()
 
         layers_list = data.get("layers", twms.config.default_layers).split(",")
         if "layers" in data and not layers_list[0]:
@@ -168,19 +177,19 @@ class TWMSMain:
             im2 = self.bbox_image(box, srs, (height, width), ll, force)
             if "empty_color" in twms.config.layers[ll]:
                 ec = ImageColor.getcolor(twms.config.layers[ll]["empty_color"], "RGBA")
-                sec = set(ec)
+                sec = {ec}
                 if "empty_color_delta" in twms.config.layers[ll]:
                     delta = twms.config.layers[ll]["empty_color_delta"]
-                    for tr in range(-delta, delta):
-                        for tg in range(-delta, delta):
-                            for tb in range(-delta, delta):
+                    for tr in range(-delta, delta + 1):
+                        for tg in range(-delta, delta + 1):
+                            for tb in range(-delta, delta + 1):
                                 if (
                                     (ec[0] + tr) >= 0
                                     and (ec[0] + tr) < 256
-                                    and (ec[1] + tr) >= 0
-                                    and (ec[1] + tr) < 256
-                                    and (ec[2] + tr) >= 0
-                                    and (ec[2] + tr) < 256
+                                    and (ec[1] + tg) >= 0
+                                    and (ec[1] + tg) < 256
+                                    and (ec[2] + tb) >= 0
+                                    and (ec[2] + tb) < 256
                                 ):
                                     sec.add((ec[0] + tr, ec[1] + tg, ec[2] + tb, ec[3]))
                 i2l = im2.load()

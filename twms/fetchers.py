@@ -6,8 +6,10 @@ import http.cookiejar
 import io
 import logging
 import mimetypes
+import os
 import pathlib
 import re
+import tempfile
 import textwrap
 import time
 import urllib.error
@@ -95,7 +97,16 @@ class TileFile:
         logger.debug(f"Saving {self.path}")
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if blob:
-            self.path.write_bytes(blob)  # Overwrite if exists, newer delete
+            fd, temporary_path = tempfile.mkstemp(
+                dir=self.path.parent, prefix=f"{self.path.name}.tmp."
+            )
+            try:
+                with os.fdopen(fd, "wb") as temporary_file:
+                    temporary_file.write(blob)
+                os.replace(temporary_path, self.path)
+            except BaseException:
+                os.unlink(temporary_path)
+                raise
             self.path_tne.unlink(missing_ok=True)  # Remove TNE-files only there
         else:
             # Empty file, no timestamp inside to save disk space
@@ -171,7 +182,9 @@ def retry_opener(tries: int = 3, delay: int = 3, backoff: int = 2):
 
 
 class HttpSessionDirector:
-    def __init__(self, headers: dict[str, str] = {}):
+    def __init__(
+        self, headers: dict[str, str] = {}, timeout: float | None = None
+    ):
         """Build HTTP opener with custom headers (session cookie) and context manager support.
 
         Args:
@@ -193,6 +206,9 @@ class HttpSessionDirector:
                     im = PIL.Image.open(resp)
                     im.show()
         """
+        self.timeout = (
+            twms.config.upstream_timeout if timeout is None else timeout
+        )
         self.cj = http.cookiejar.CookieJar()
         # self.cj = http.cookiejar.MozillaCookieJar(filename="cookies.txt")
         # self.cj.load(filename="cookies.txt")
@@ -216,6 +232,7 @@ class HttpSessionDirector:
         Raises:
             OSError subclasses, when fails to open URL several times.
         """
+        kwargs.setdefault("timeout", self.timeout)
         try:
             return self.opener_director.open(*args, **kwargs)
         except urllib.error.HTTPError as resp:  # URLError subclass
@@ -236,7 +253,8 @@ class TileFetcher:
             raise ValueError(f"'fetch' must be one of {fetcher_names}")
         self.__worker = getattr(self, self.layer["fetch"])  # Choose fetcher
         self.http_session = HttpSessionDirector(
-            headers=(twms.config.default_headers | self.layer["headers"])
+            headers=(twms.config.default_headers | self.layer["headers"]),
+            timeout=self.layer.get("timeout"),
         )
         self.thread_pool = ThreadPoolExecutor(
             max_workers=twms.config.dl_threads_per_layer

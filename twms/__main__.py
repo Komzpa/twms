@@ -54,7 +54,21 @@ class GetHandler(BaseHTTPRequestHandler):
         josm/maps.xml
         any overview
         """
-        if self.path.startswith("/wmts"):
+        if self.path.startswith("/tilejson/"):
+            match = re.fullmatch(
+                r"/tilejson/(.+)\.json", urllib.parse.urlsplit(self.path).path
+            )
+            if match:
+                data = {
+                    "request": "GetTileJSON",
+                    "layers": urllib.parse.unquote(match.group(1)),
+                }
+                status, content_type, content = self.TWMS.wms_handler(data)
+            else:
+                status = HTTPStatus.NOT_FOUND
+                content_type = "text/plain"
+                content = repr(status)
+        elif self.path.startswith("/wmts"):
             if self.path.startswith("/wmts/1.0.0/WMTSCapabilities.xml"):
                 status = HTTPStatus.OK
                 content_type = "text/xml"
@@ -101,13 +115,13 @@ class GetHandler(BaseHTTPRequestHandler):
 
         self.send_response(status)
         self.send_header("Content-Type", content_type)
-        if "text/" in content_type or "xml" in content_type:
+        if "text/" in content_type or "xml" in content_type or "json" in content_type:
             # JOSM tends to save old XML
             self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.send_header("Pragma", "no-cache")  # HTTP 1.0
             self.send_header("Expires", "0")  # Proxy
         self.end_headers()
-        if "text/" in content_type or "xml" in content_type:
+        if "text/" in content_type or "xml" in content_type or "json" in content_type:
             content = content.encode("utf-8")
         self.wfile.write(content)
 

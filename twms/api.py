@@ -1,9 +1,11 @@
+import json
 import math
 import mimetypes
 import urllib.parse
 import xml.etree.ElementTree as ET
 
 import twms
+import twms.bbox
 import twms.config
 import twms.projections
 
@@ -278,10 +280,57 @@ def maps_xml_wms111() -> str:
     return ET.tostring(root, encoding="unicode", xml_declaration=True)
 
 
+def tilejson_document(layer_list: str) -> dict:
+    """Build TileJSON metadata for one or more configured layers."""
+    layer_ids = [layer_id for layer_id in layer_list.split(",") if layer_id]
+    if not layer_ids:
+        layer_ids = [
+            layer_id
+            for layer_id in twms.config.default_layers.split(",")
+            if layer_id
+        ]
+    if not layer_ids:
+        raise KeyError("TileJSON requires at least one layer")
+    if any(layer_id not in twms.config.layers for layer_id in layer_ids):
+        raise KeyError("Unknown layer in TileJSON request")
+
+    layers = [twms.config.layers[layer_id] for layer_id in layer_ids]
+    bounds = layers[0]["bounds"]
+    for layer in layers[1:]:
+        bounds = twms.bbox.add(bounds, layer["bounds"])
+
+    extension = mimetypes.guess_extension(layers[0]["mimetype"]) or ".jpg"
+    if extension == ".jpe":
+        extension = ".jpg"
+    names = urllib.parse.quote(",".join(layer_ids), safe=",")
+    min_zoom = max(layer["min_zoom"] for layer in layers)
+    max_zoom = min(layer["max_zoom"] for layer in layers)
+    return {
+        "tilejson": "3.0.0",
+        "name": ", ".join(layer["name"] for layer in layers),
+        "scheme": "xyz",
+        "tiles": [
+            f"{twms.config.service_wms_url}/{names}/{{z}}/{{x}}/{{y}}{extension}"
+        ],
+        "bounds": list(bounds),
+        "center": [
+            (bounds[0] + bounds[2]) / 2,
+            (bounds[1] + bounds[3]) / 2,
+            min_zoom,
+        ],
+        "minzoom": min_zoom,
+        "maxzoom": max_zoom,
+    }
+
+
+def tilejson_json(layer_list: str) -> str:
+    return json.dumps(tilejson_document(layer_list), sort_keys=True)
+
+
 def maps_xml_wms130() -> str:
     """Minimal WMS GetCapabilities v1.3.0 XML implementation.
 
-    Not implemented.
+    WMS 1.3.0 GetCapabilities response.
 
     WMS_Capabilities
         Service
@@ -314,6 +363,13 @@ def maps_xml_wms130() -> str:
     )
     capability = ET.SubElement(root, "Capability")
     request = ET.SubElement(capability, "Request")
+    get_capabilities = ET.SubElement(request, "GetCapabilities")
+    ET.SubElement(get_capabilities, "Format").text = "text/xml"
+    ET.SubElement(
+        ET.SubElement(ET.SubElement(ET.SubElement(get_capabilities, "DCPType"), "HTTP"), "Get"),
+        "OnlineResource",
+        attrib={"{http://www.w3.org/1999/xlink}href": twms.config.service_wms_url},
+    )
 
     getmap = ET.SubElement(request, "GetMap")
     for image_mimetype in ("image/jpeg", "image/png", "image/webp"):
@@ -325,29 +381,28 @@ def maps_xml_wms130() -> str:
         attrib={"{http://www.w3.org/1999/xlink}href": twms.config.service_wms_url},
     )
 
+    exceptions = ET.SubElement(capability, "Exception")
+    ET.SubElement(exceptions, "Format").text = "XML"
+    root_layer = ET.SubElement(capability, "Layer")
+    ET.SubElement(root_layer, "Title").text = twms.config.wms_name
+    ET.SubElement(root_layer, "CRS").text = "CRS:84"
     for layer_id, layer_item in twms.config.layers.items():
-        layer = ET.SubElement(capability, "Layer")
-        ET.SubElement(layer, "Title").text = layer_id
-        # Only "named layers" shall be requested by a client
-        ET.SubElement(layer, "Name").text = layer_id  # layer_item["name"]
-        # CRS="CRS:84 May be inherited from parent
+        layer = ET.SubElement(root_layer, "Layer")
+        ET.SubElement(layer, "Title").text = layer_item["name"]
+        ET.SubElement(layer, "Name").text = layer_id
 
-        # Not sure about coordinates reprojection
         bbox = tuple(map(str, layer_item["bounds"]))
         geo_bbox = ET.SubElement(layer, "EX_GeographicBoundingBox")
         ET.SubElement(geo_bbox, "westBoundLongitude").text = bbox[0]
         ET.SubElement(geo_bbox, "eastBoundLongitude").text = bbox[2]
         ET.SubElement(geo_bbox, "southBoundLatitude").text = bbox[1]
         ET.SubElement(geo_bbox, "northBoundLatitude").text = bbox[3]
-        # May be inherited from parent. May be multiple.
-        ET.SubElement(layer, "CRS").text = "EPSG:4326"
-        # ET.SubElement(layer, "CRS").text = layer_item["proj"]
-        # Lower left and upper right corners in a specified CRS
+        ET.SubElement(layer, "CRS").text = "CRS:84"
         ET.SubElement(
             layer,
             "BoundingBox",
             attrib={
-                "CRS": "EPSG:4326",  # WGS84, note the "CoordinateRS"
+                "CRS": "CRS:84",
                 "minx": bbox[0],
                 "miny": bbox[1],
                 "maxx": bbox[2],
@@ -355,7 +410,6 @@ def maps_xml_wms130() -> str:
             },
         )
     ET.indent(root)
-    raise NotImplementedError
     return ET.tostring(root, encoding="unicode", xml_declaration=True)
 
 

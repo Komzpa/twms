@@ -97,6 +97,7 @@ tiles_cache = os.path.expanduser("~/dev/gis/sasplanet/SAS.Planet/cache_ma/")
 ram_cache_tiles = 2048  # Number of tiles in RAM cache
 dl_threads_per_layer = 5
 
+upstream_timeout = 30  # Seconds; override per layer with its "timeout" setting.
 # WMS GetCapabilities
 default_layers = ""  # layer(s) to show when no layers given explicitly
 max_height = 4095  # WMS maximal allowed requested height

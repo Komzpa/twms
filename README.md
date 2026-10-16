@@ -17,8 +17,9 @@ Hacky TMS/WMS proxy for JOSM. Please use only allowed data sources for OpenStree
 
 ## Services provided
 
-* WMS 1.1.1 http://localhost:8080/wms which supports also tile links `http://localhost:8080/wms/{layer_id}/{z}/{x}/{y}{ext}` with reprojection. Conventional URL placeholders: `{z}`, `{x}`, `{y}`, `{-y}` etc
-* WMTS 1.0.0 http://127.0.0.1:8080/wmts/1.0.0/WMTSCapabilities.xml Also provides tile proxy without reprojection `http://localhost:8080/wmts/{layer_id}/{z}/{x}/{y}{ext}`
+* WMS 1.1.1 and 1.3.0 capabilities: `http://localhost:8080/wms?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0` supports tile links `http://localhost:8080/wms/{layer_id}/{z}/{x}/{y}{ext}` with reprojection.
+* TileJSON 3.0.0 metadata: `http://localhost:8080/tilejson/{layer_id}.json`.
+* WMTS 1.0.0 `http://127.0.0.1:8080/wmts/1.0.0/WMTSCapabilities.xml` provides a tile proxy without reprojection at `http://localhost:8080/wmts/{layer_id}/{z}/{x}/{y}{ext}`.
 * Imagery overview web page http://localhost:8080 with JOSM [remote control](https://josm.openstreetmap.de/wiki/Help/RemoteControlCommands) (`wms`, `tms:`) links
     * Open "JOSM Imagery > Imagery preferences > Press *+TMS*, *Selected entries*" and paste link from here. E.g.: `tms:http://localhost:8080/wms/vesat/{z}/{x}/{y}.jpg`
 * JOSM [imagery XML](https://josm.openstreetmap.de/wiki/Maps): http://localhost:8080/josm/maps.xml - imagery list for `imagery.layers.sites` property
